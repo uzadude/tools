@@ -1,10 +1,16 @@
 # Rooftop Solar — Israel 2026
 
-A single-file, offline calculator for whether a home solar system pays for itself, built
-around Israeli 2026 electricity tariffs. Open `index.html` in a browser, type your numbers,
-and it answers one question:
+A single-file, offline calculator for what a home solar system is actually worth to you,
+built around Israeli 2026 electricity tariffs. Open `index.html` in a browser, type your
+numbers, and it answers two questions:
 
-- **How long until the installation pays for itself**, and what is it worth after that?
+- **What does it put back in your pocket every month?**
+- **How long until the installation has paid for itself**, and what's the monthly figure
+  worth once it has?
+
+The monthly number leads because it's the one you feel. Payback is kept alongside it,
+because a monthly income that hasn't repaid its own capital yet isn't really income — the
+headline caption always names what's still outstanding.
 
 Everything runs in the browser. No server, no build step, no analytics, no network request
 of any kind.
@@ -62,9 +68,18 @@ Exported units are valued at the feed-in rate plus any premium.
 **Costs.** The installed price as a year-zero outflow, annual maintenance and insurance, and
 one inverter replacement, which is the part that reliably doesn't outlive the panels.
 
-**The answer.** Payback is where the cumulative position crosses zero, interpolated inside
-the year. Alongside it: net position over your horizon, and the internal rate of return on
-the whole cash-flow series, so you can compare the roof against leaving the money elsewhere.
+**The answer.** The monthly figure is reported three ways, because they differ and only
+quoting the flattering one would be dishonest: **year one**, which is the highest the system
+will ever manage; the **average across your whole horizon**, which is lower once panels fade,
+the inverter is replaced and the export contract runs out; and what it's worth **after
+payback**, when the money stops repaying the installation and starts being yours. Alongside
+those: payback itself, interpolated inside the year, the net position over the horizon, and
+the internal rate of return on the cash-flow series, so the roof can be compared against
+leaving the money elsewhere.
+
+The levers table measures the *average* monthly rather than year one, deliberately. Changes
+like rising electricity prices or skipping the inverter replacement only bite in later years,
+and a year-one column would report them as doing nothing at all.
 
 Everything is in today's shekels, so inflation is netted out rather than inflating every
 figure.

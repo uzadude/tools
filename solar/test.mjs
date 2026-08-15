@@ -154,7 +154,46 @@ test("reproduces the industry example figures", () => {
   assert.ok(r.payback > 7 && r.payback < 7.5, `~7.2 years, got ${r.payback.toFixed(2)}`);
 });
 
+/* ---- monthly income, the headline figure ---- */
+test("monthly income is just the first year over twelve", () => {
+  const r = m.summarise(system());
+  near(r.monthlyY1, r.y1.net / 12, 1e-9, "year one per month");
+});
+test("the average is the mean of the earning years", () => {
+  const r = m.summarise(system());
+  const mean = r.rows.slice(1).reduce((a, x) => a + x.net, 0) / (r.rows.length - 1) / 12;
+  near(r.monthlyAvg, mean, 1e-9, "averaged over the horizon");
+});
+test("with nothing decaying, the average equals year one", () => {
+  const r = m.summarise(system({ degradation: 0, inverterCost: 0, escalation: 0, tariffYears: 25, horizon: 25 }));
+  near(r.monthlyAvg, r.monthlyY1, 1e-9, "flat system, flat income");
+});
+test("degradation and the inverter drag the average below year one", () => {
+  const r = m.summarise(system({ degradation: 0.005, inverterCost: 5000, escalation: 0 }));
+  assert.ok(r.monthlyAvg < r.monthlyY1, `avg ${r.monthlyAvg} should trail year one ${r.monthlyY1}`);
+});
+test("post-payback income only counts years after payback", () => {
+  const r = m.summarise(system());
+  assert.ok(r.payback !== null, "this example does pay back");
+  const after = r.rows.filter(x => x.year > r.payback);
+  near(r.monthlyAfter, after.reduce((a, x) => a + x.net, 0) / after.length / 12, 1e-9, "mean of the later years");
+});
+test("post-payback income is zero when it never pays back", () => {
+  const r = m.summarise(system({ costPerKwp: 40000 }));
+  assert.equal(r.payback, null, "far too expensive to repay");
+  assert.equal(r.monthlyAfter, 0, "nothing to report");
+  assert.ok(r.monthlyY1 > 0, "but it still earns every month");
+});
+
 /* ---- the headline claim: self-consumption drives the answer ---- */
+test("monthly income rises with self-consumption", () => {
+  let prev = -Infinity;
+  for (let share = 0; share <= 1.0001; share += 0.1){
+    const mo = m.summarise(system({ selfShare: share })).monthlyY1;
+    assert.ok(mo >= prev - 1e-9, `share ${share.toFixed(1)} earned less than the step before`);
+    prev = mo;
+  }
+});
 test("using more on site always pays back at least as fast", () => {
   let prev = Infinity;
   for (let share = 0; share <= 1.0001; share += 0.1){

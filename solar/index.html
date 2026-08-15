@@ -151,7 +151,7 @@ footer a{color:var(--text-secondary)}
 
 <div class="card">
   <div class="hero" id="hero">
-    <div class="label">Time to pay back the installation</div>
+    <div class="label">What the system puts back in your pocket, every month</div>
     <div class="fig" id="heroFig">—</div>
     <div class="cap" id="heroCap">Fill in your numbers below</div>
   </div>
@@ -286,7 +286,7 @@ footer a{color:var(--text-secondary)}
     <div class="tblwrap" id="tblSplit"></div>
   </div>
   <div class="chartcard">
-    <div class="chead"><h2 style="font-size:13.5px">Payback against how much you use on site</h2>
+    <div class="chead"><h2 style="font-size:13.5px">Monthly income against how much you use on site</h2>
       <button class="mini" data-toggle="tblSens">Table</button></div>
     <p class="hint" style="margin-top:4px">Every point re-runs the whole model at that self-consumption share. Your current setting is marked.</p>
     <div id="chartSens"></div>
@@ -440,9 +440,23 @@ function summarise(s){
   const lifetime = rows[rows.length - 1].cumulative;
   const totalProduced = rows.reduce((a, r) => a + r.produced, 0);
   const capex = rows[0].capex;
+  const years = rows.length - 1;
+  const earning = rows.slice(1);
+  const totalNet = earning.reduce((a, r) => a + r.net, 0);
+  const payback = paybackYears(rows);
+  // What the system puts back in your pocket each month. Year one is the concrete
+  // number; the average is lower because panels fade, the inverter gets replaced
+  // and the export contract eventually runs out.
+  const monthlyY1 = y1.net / 12;
+  const monthlyAvg = years > 0 ? totalNet / years / 12 : 0;
+  // Once the installation is repaid, the same monthly figure is genuinely yours
+  // rather than repaying capital — worth separating, since they read alike.
+  const afterPayback = payback === null ? [] : earning.filter(r => r.year > payback);
+  const monthlyAfter = afterPayback.length
+    ? afterPayback.reduce((a, r) => a + r.net, 0) / afterPayback.length / 12 : 0;
   return {
     rows, y1, capex, lifetime, totalProduced,
-    payback: paybackYears(rows),
+    payback, monthlyY1, monthlyAvg, monthlyAfter,
     irr: irr(rows),
     npv: npv(rows, s.discount),
     // what a kWh is worth on average once the two prices are blended
@@ -633,18 +647,16 @@ function cumulativeChart(mount, rows){
   el.appendChild(svg);
 }
 
-/* ---------- Payback against self-consumption ---------- */
+/* ---------- Monthly income against self-consumption ---------- */
 function sensitivityChart(mount, pts, markIdx){
   const el = $(mount); el.innerHTML = "";
   const W = Math.max(320, el.clientWidth || 600);
-  const padL = 44, padR = 18, padT = 20, padB = 44;
+  const padL = 52, padR = 18, padT = 20, padB = 44;
   const H = 240, plotW = W - padL - padR, plotH = H - padT - padB;
   const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img"});
-  const live = pts.filter(p => p.payback !== null);
-  if (!live.length){ el.innerHTML = '<p class="hint">On these numbers it never pays back, at any level of self-use.</p>'; return; }
 
-  const maxPb = Math.max(...live.map(p => p.payback));
-  const ticks = niceTicks(maxPb, 4); const top = ticks[ticks.length-1];
+  const ticks = niceTicks(Math.max(...pts.map(p => p.monthly), 1), 4);
+  const top = ticks[ticks.length-1];
   const sy = v => padT + plotH - (v/top)*plotH;
   const sx = i => padL + (pts.length<2 ? plotW/2 : (i/(pts.length-1))*plotW);
 
@@ -653,28 +665,27 @@ function sensitivityChart(mount, pts, markIdx){
     svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W-padR, y2:y, stroke:cssv("--grid"), "stroke-width":1}));
     const lb = svgEl("text", {x:padL-7, y:y+3.5, "text-anchor":"end", fill:cssv("--text-muted"),
       "font-size":10.5, "font-family":"inherit"});
-    lb.textContent = t + "y"; svg.appendChild(lb);
+    lb.textContent = nisK(t); svg.appendChild(lb);
   }
 
-  const color = cssv("--s1");
+  const color = cssv("--s3");
   let d = "";
-  pts.forEach((p,i) => { if (p.payback === null) return; d += (d?"L":"M") + ` ${sx(i)} ${sy(p.payback)} `; });
+  pts.forEach((p,i) => { d += (d?"L":"M") + ` ${sx(i)} ${sy(p.monthly)} `; });
   svg.appendChild(svgEl("path", {d, fill:"none", stroke:color, "stroke-width":2,
     "stroke-linejoin":"round", "stroke-linecap":"round"}));
 
   pts.forEach((p,i) => {
-    if (p.payback === null) return;
     const isMark = i === markIdx;
-    svg.appendChild(svgEl("circle", {cx:sx(i), cy:sy(p.payback), r:isMark?7:4,
+    svg.appendChild(svgEl("circle", {cx:sx(i), cy:sy(p.monthly), r:isMark?7:4,
       fill:isMark?cssv("--s2"):color, stroke:cssv("--surface-1"), "stroke-width":2}));
   });
   const mp = pts[markIdx];
-  if (mp && mp.payback !== null){
-    const t = svgEl("text", {y:sy(mp.payback)-15, "text-anchor":"middle",
+  if (mp){
+    const t = svgEl("text", {y:sy(mp.monthly)-15, "text-anchor":"middle",
       fill:cssv("--text-primary"), "font-size":11.5, "font-weight":650, "font-family":"inherit",
       stroke:cssv("--surface-1"), "stroke-width":3.5, "paint-order":"stroke"});
-    t.textContent = "you: " + yrs(mp.payback);
-    t.setAttribute("x", Math.min(W - padR - 34, Math.max(padL + 34, sx(markIdx))));
+    t.textContent = "you: " + nis(mp.monthly) + "/mo";
+    t.setAttribute("x", Math.min(W - padR - 44, Math.max(padL + 44, sx(markIdx))));
     svg.appendChild(t);
   }
 
@@ -693,10 +704,10 @@ function sensitivityChart(mount, pts, markIdx){
   pts.forEach((p,i) => {
     const hit = svgEl("rect", {x:sx(i)-band/2, y:padT, width:band, height:plotH, fill:"transparent"});
     hit.addEventListener("mousemove", ev => showTip(
-      `<div class="tt">${Math.round(p.share*100)}% used on site</div>` +
-      (p.payback === null ? `<div class="r"><span class="k">Never pays back</span><b>—</b></div>`
-        : `<div class="r"><span class="k">Pays back in</span><b>${yrs(p.payback)}</b></div>
-           <div class="r"><span class="k">Over ${p.horizon} years</span><b>${nisK(p.lifetime)}</b></div>`), ev));
+      `<div class="tt">${Math.round(p.share*100)}% used on site</div>
+       <div class="r"><span class="k">Per month, year 1</span><b>${nis(p.monthly)}</b></div>
+       <div class="r"><span class="k">Pays back in</span><b>${p.payback === null ? "never" : yrs(p.payback)}</b></div>
+       <div class="r"><span class="k">Over ${p.horizon} years</span><b>${nisK(p.lifetime)}</b></div>`, ev));
     hit.addEventListener("mouseleave", hideTip);
     svg.appendChild(hit);
   });
@@ -731,17 +742,21 @@ function render(){
   $("tagRun").textContent    = s.horizon + " yrs";
 
   // ---- hero ----
+  // the monthly figure is the honest headline, but it reads like free money until you
+  // say what it's doing first — so the caption always names the outstanding install cost
   const hero = $("hero");
-  hero.classList.toggle("bad", r.payback === null);
-  if (r.payback === null){
-    $("heroFig").textContent = "Never";
-    $("heroCap").innerHTML = `Over ${s.horizon} years this system doesn't earn back its
-      ${nis(r.capex)}. It ends ${nis(Math.abs(r.lifetime))} down.`;
+  hero.classList.toggle("bad", r.monthlyY1 <= 0);
+  $("heroFig").textContent = (r.monthlyY1 < 0 ? "−" : "") + nis(Math.abs(r.monthlyY1));
+  if (r.monthlyY1 <= 0){
+    $("heroCap").innerHTML = `This system costs more to run than it earns. Check the tariffs
+      and the maintenance figure — something here isn't right.`;
+  } else if (r.payback === null){
+    $("heroCap").innerHTML = `a month in year one — but at ${nis(r.capex)} it never earns the
+      installation back inside ${s.horizon} years, ending ${nis(Math.abs(r.lifetime))} down.`;
   } else {
-    $("heroFig").textContent = r.payback.toFixed(1).replace(/\.0$/, "") + " yrs";
-    $("heroCap").innerHTML = `The ${nis(r.capex)} comes back by year
-      <b>${Math.ceil(r.payback)}</b>, and everything after that is profit —
-      ${nis(r.lifetime)} by year ${s.horizon}.`;
+    $("heroCap").innerHTML = `a month in year one, averaging ${nis(r.monthlyAvg)} over
+      ${s.horizon} years. The ${nis(r.capex)} is repaid by year <b>${Math.ceil(r.payback)}</b>;
+      after that it's ${nis(r.monthlyAfter)} a month of clear profit.`;
   }
 
   // ---- tiles ----
@@ -752,14 +767,18 @@ function render(){
       <div class="d">${s.sizeKwp} kWp at ${nis(s.costPerKwp)}/kWp</div></div>
     <div class="tile"><div class="l">Generated, year 1</div><div class="v">${Math.round(r.y1.produced/1000)}k</div>
       <div class="d">kWh — ${pct(coverPct,0)} of what you use</div></div>
-    <div class="tile"><div class="l">Earns, year 1</div><div class="v pos">${nis(r.y1.net)}</div>
-      <div class="d">after ${nis(s.opex)} of running costs</div></div>
+    <div class="tile"><div class="l">Average per month</div>
+      <div class="v ${r.monthlyAvg>=0?"pos":"neg"}">${nis(r.monthlyAvg)}</div>
+      <div class="d">across all ${s.horizon} years, not just the first</div></div>
+    <div class="tile"><div class="l">Once it's paid for</div>
+      <div class="v ${r.monthlyAfter>0?"pos":""}">${r.payback === null ? "—" : nis(r.monthlyAfter)}</div>
+      <div class="d">${r.payback === null ? "never gets there" : `a month, clear, from year ${Math.ceil(r.payback)}`}</div></div>
     <div class="tile"><div class="l">Used on site</div><div class="v">${pct(selfPct,0)}</div>
       <div class="meter"><span style="width:${Math.min(100,selfPct)}%"></span></div>
       <div class="d">worth ${nis(s.retailTariff*1000)}/MWh vs ${nis((s.exportTariff+s.premium)*1000)} exported</div></div>
-    <div class="tile"><div class="l">Net over ${s.horizon} years</div>
-      <div class="v ${r.lifetime>=0?"pos":"neg"}">${nisK(r.lifetime)}</div>
-      <div class="d">in today's shekels</div></div>
+    <div class="tile"><div class="l">Pays for itself in</div>
+      <div class="v">${r.payback === null ? "never" : yrs(r.payback)}</div>
+      <div class="d">${r.payback === null ? `still ${nis(Math.abs(r.lifetime))} down at ${s.horizon} years` : `then ${nisK(r.lifetime)} net by year ${s.horizon}`}</div></div>
     <div class="tile"><div class="l">Return on the money</div>
       <div class="v">${r.irr === null ? "—" : pct(r.irr*100,1)}</div>
       <div class="d">${r.irr === null ? "never turns a profit" : `real, vs ${pct(s.discount*100,0)} elsewhere`}</div></div>
@@ -853,21 +872,25 @@ function render(){
   for (let share = 0; share <= 1.0001; share += 0.1){
     const o = {...s, selfShare: share};
     const os = summarise(o);
-    pts.push({share, payback: os.payback, lifetime: os.lifetime, horizon: s.horizon});
+    pts.push({share, monthly: os.monthlyY1, payback: os.payback,
+              lifetime: os.lifetime, horizon: s.horizon});
   }
   let markIdx = Math.round(s.selfShare * 10);
   markIdx = Math.max(0, Math.min(pts.length-1, markIdx));
   sensitivityChart("chartSens", pts, markIdx);
-  renderTable("tblSens", ["Used on site","Pays back in",`Net over ${s.horizon} years`],
-    pts.map(p => [pct(p.share*100,0), p.payback === null ? "never" : yrs(p.payback), nisK(p.lifetime)]));
+  renderTable("tblSens", ["Used on site","Per month, year 1","Pays back in",`Net over ${s.horizon} years`],
+    pts.map(p => [pct(p.share*100,0), nis(p.monthly),
+      p.payback === null ? "never" : yrs(p.payback), nisK(p.lifetime)]));
 
   let sn = "";
   const at0 = pts[0], at100 = pts[pts.length-1];
-  if (at0.payback !== null && at100.payback !== null){
+  const gain = at100.monthly - at0.monthly;
+  if (gain > 0){
     sn += `<div class="note"><div class="ttl">What self-consumption is worth</div>
-      Exporting everything pays back in <b>${yrs(at0.payback)}</b>; using it all yourself,
-      <b>${yrs(at100.payback)}</b>. That spread is the whole argument for shifting loads into daylight —
-      a timer on the water heater or the washing machine costs nothing and moves you along this curve.</div>`;
+      Exporting everything earns <b>${nis(at0.monthly)}</b> a month; using it all yourself,
+      <b>${nis(at100.monthly)}</b> — a difference of <b>${nis(gain)}</b> a month for the same panels
+      on the same roof. That spread is the whole argument for shifting loads into daylight, and a timer
+      on the water heater costs nothing.</div>`;
   }
   $("splitNotes").innerHTML = sn;
 
@@ -883,24 +906,25 @@ function render(){
     ["Urban premium applies",         o => { o.premium = IL.urbanPremium; }]
   ];
   const levRows = levers.map(([name, fn]) => {
-    const o = {...s, sp: undefined};
+    const o = {...s};
     fn(o);
     const os = summarise(o);
-    let delta = "—", cls = "var(--text-muted)";
-    if (r.payback !== null && os.payback !== null){
-      const d = os.payback - r.payback;
-      delta = Math.abs(d) < 0.05 ? "no change"
-        : d < 0 ? `${yrs(-d)} sooner` : `${yrs(d)} later`;
-      cls = d < -0.05 ? "var(--good-text)" : d > 0.05 ? "var(--crit)" : "var(--text-muted)";
-    } else if (os.payback !== null){ delta = "makes it pay"; cls = "var(--good-text)"; }
-    else { delta = "never pays"; cls = "var(--crit)"; }
+    // averaged, not year one: a cheaper inverter or rising electricity prices only show
+    // up in later years, and a year-one column would report them as doing nothing
+    const dm = os.monthlyAvg - r.monthlyAvg;
+    const mCls = dm > 0.5 ? "var(--good-text)" : dm < -0.5 ? "var(--crit)" : "var(--text-muted)";
+    const delta = Math.abs(dm) < 0.5 ? "no change" : `${dm > 0 ? "+" : "−"}${nis(Math.abs(dm))}/mo`;
     const diff = os.lifetime - r.lifetime;
     const dCls = diff > 0 ? "var(--good-text)" : diff < 0 ? "var(--crit)" : "var(--text-muted)";
-    return [name, os.payback === null ? "never" : yrs(os.payback),
-      `<span style="color:${cls};font-weight:600">${delta}</span>`,
-      `${nisK(os.lifetime)} <span style="color:${dCls};font-size:11px">(${diff>=0?"+":"−"}${nisK(Math.abs(diff))})</span>`];
-  });
-  renderTable("tblLev", ["Change one thing","Pays back in","Effect", `Net over ${s.horizon} years`], levRows);
+    return { sort: os.monthlyAvg, cells: [name, nis(os.monthlyAvg),
+      `<span style="color:${mCls};font-weight:600">${delta}</span>`,
+      os.payback === null ? "never" : yrs(os.payback),
+      `${nisK(os.lifetime)} <span style="color:${dCls};font-size:11px">(${diff>=0?"+":"−"}${nisK(Math.abs(diff))})</span>`] };
+  })
+  // biggest monthly gain first, since that's the question the page now leads with
+  .sort((a, b) => b.sort - a.sort).map(x => x.cells);
+  renderTable("tblLev", ["Change one thing","Avg per month","Effect","Pays back in",
+    `Net over ${s.horizon} years`], levRows);
 }
 
 /* ============================================================
