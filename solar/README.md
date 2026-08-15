@@ -4,13 +4,36 @@ A single-file, offline calculator for what a home solar system is actually worth
 built around Israeli 2026 electricity tariffs. Open `index.html` in a browser, type your
 numbers, and it answers two questions:
 
-- **What does it put back in your pocket every month?**
+- **Are you better off each month, net of what the system cost you?**
 - **How long until the installation has paid for itself**, and what's the monthly figure
   worth once it has?
 
-The monthly number leads because it's the one you feel. Payback is kept alongside it,
-because a monthly income that hasn't repaid its own capital yet isn't really income — the
-headline caption always names what's still outstanding.
+The monthly number leads because it's the one you feel — but it's reported *net of the cost
+of the money*, which is the part most solar calculators quietly drop. The panels earning
+₪652 a month is not the same as being ₪652 a month better off, because ₪45,000 went
+somewhere to make that happen.
+
+## The cost of the money
+
+Either you borrowed it and there's a payment every month, or you paid cash and gave up
+whatever that money would otherwise have earned. Both are a real monthly cost and neither
+appears on your electricity bill. Choose the framing in **Paying for it**:
+
+- **Borrowed** — a loan at its own rate over its own term. Nothing leaves your pocket on day
+  one, so there's no lump to earn back; the question is simply whether the panels out-earn
+  the payment. Payback and rate of return are reported as *not applicable* rather than
+  "never", because with no capital at risk neither question has an answer.
+- **Cash** — the same sum expressed as an annuity at whatever the money would have earned
+  instead. It's the identical formula: a loan and forgone returns at the same rate cost
+  exactly the same, and the test suite pins that.
+
+On the example figures the panels earn ₪652 a month; paying cash at 3% real that's ₪439 net,
+and borrowing at 4% over 15 years it's ₪319 — rising to about ₪585 once the cost is behind
+you either way.
+
+This also fixes something the gross figure simply cannot show: negotiating the price down
+doesn't change what the panels generate, so against a gross number it looks like it does
+nothing at all. Net of capital, it moves.
 
 Everything runs in the browser. No server, no build step, no analytics, no network request
 of any kind.
@@ -65,10 +88,12 @@ Switching route swaps the tariff in, so you never model a route at another route
 what your household actually uses — a roof cannot save you more electricity than you buy.
 Exported units are valued at the feed-in rate plus any premium.
 
-**Costs.** The installed price as a year-zero outflow, annual maintenance and insurance, and
-one inverter replacement, which is the part that reliably doesn't outlive the panels.
+**Costs.** The installed price — as a year-zero outflow if you pay cash, or as a monthly
+payment across the term if you borrow — annual maintenance and insurance, and one inverter
+replacement, which is the part that reliably doesn't outlive the panels.
 
-**The answer.** The monthly figure is reported three ways, because they differ and only
+**The answer.** The monthly figure is reported gross and net of the cost of the money, and
+the net one leads. Underneath, it's broken out three ways, because they differ and only
 quoting the flattering one would be dishonest: **year one**, which is the highest the system
 will ever manage; the **average across your whole horizon**, which is lower once panels fade,
 the inverter is replaced and the export contract runs out; and what it's worth **after

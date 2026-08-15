@@ -251,6 +251,29 @@ footer a{color:var(--text-secondary)}
     </div>
   </details>
 
+  <details class="sec">
+    <summary>Paying for it <span class="tag" id="tagPay"></span></summary>
+    <div class="secbody">
+      <p class="hint">The panels earn money, but the money that bought them isn't free. Either you're
+        paying a loan every month, or you paid cash and gave up whatever that cash would have earned
+        elsewhere. Both are a real monthly cost, and neither shows up in the electricity bill.</p>
+      <label class="f"><span>How are you paying?</span>
+        <select id="financeMode">
+          <option value="cash">Cash — charge what the money would have earned instead</option>
+          <option value="loan">Borrowed — a loan, like a mortgage</option>
+        </select></label>
+      <div id="loanBlock" style="display:none">
+        <div class="grid2">
+          <label class="f"><span>Interest rate <span class="tiny">(%, real — above inflation)</span></span>
+            <input type="number" id="loanRate" value="4" step="0.25"></label>
+          <label class="f"><span>Loan term <span class="tiny">(years)</span></span>
+            <input type="number" id="loanYears" value="15" min="1" max="30"></label>
+        </div>
+      </div>
+      <div id="payNote" class="note"></div>
+    </div>
+  </details>
+
   <div class="btnrow">
     <button class="pri" id="btnSave">Save my numbers</button>
     <button id="btnLoad">Load a saved file</button>
@@ -286,7 +309,7 @@ footer a{color:var(--text-secondary)}
     <div class="tblwrap" id="tblSplit"></div>
   </div>
   <div class="chartcard">
-    <div class="chead"><h2 style="font-size:13.5px">Monthly income against how much you use on site</h2>
+    <div class="chead"><h2 style="font-size:13.5px">Net monthly income against how much you use on site</h2>
       <button class="mini" data-toggle="tblSens">Table</button></div>
     <p class="hint" style="margin-top:4px">Every point re-runs the whole model at that self-consumption share. Your current setting is marked.</p>
     <div id="chartSens"></div>
@@ -375,13 +398,44 @@ function annualValue(produced, consumption, selfShare, retail, exportRate, premi
   };
 }
 
-/* The whole project as a cash-flow series. Index 0 is the day you pay the
-   installer; index n is the end of year n. */
+/* The monthly cost of the money that bought the system.
+   This is one formula doing two jobs. Borrow the money and it's the loan payment.
+   Pay cash and it's the same sum expressed as what you gave up each month by not
+   leaving that cash where it was — the standard amortisation either way. */
+function monthlyPayment(principal, annualRate, years){
+  const n = Math.round(years * 12);
+  if (principal <= 0 || n <= 0) return 0;
+  const r = annualRate / 12;
+  if (Math.abs(r) < 1e-12) return principal / n;
+  return principal * r / (1 - Math.pow(1 + r, -n));
+}
+
+/* What the capital costs per month, and for how long. Cash spreads it over the
+   whole horizon at whatever the money would otherwise have earned; a loan uses
+   its own rate and term. */
+function capitalCharge(s){
+  const capex = s.sizeKwp * s.costPerKwp;
+  const financed = s.financeMode === "loan";
+  const rate  = financed ? s.loanRate : s.discount;
+  const years = financed ? s.loanYears : s.horizon;
+  return { capex, financed, rate, years, monthly: monthlyPayment(capex, rate, years) };
+}
+
+/* The whole project as a cash-flow series. Index 0 is the day the system is
+   installed; index n is the end of year n.
+   `operating` is what the panels earn before anything is paid for them, and `net`
+   is what actually moved that year — so paying cash puts the whole cost in year
+   zero, while borrowing puts nothing there and a payment in every year of the term. */
 function buildCashflows(s){
   const rows = [];
-  const capex = s.sizeKwp * s.costPerKwp;
+  const cap = capitalCharge(s);
+  const capex = cap.capex;
+  const loanAnnual = cap.financed ? cap.monthly * 12 : 0;
   rows.push({ year: 0, produced: 0, selfKwh: 0, exportKwh: 0, selfValue: 0, exportValue: 0,
-              premiumValue: 0, opex: 0, capex, net: -capex });
+              premiumValue: 0, opex: 0, operating: 0,
+              capex: cap.financed ? 0 : capex,
+              capital: cap.financed ? 0 : capex,
+              net: cap.financed ? 0 : -capex });
   for (let y = 1; y <= s.horizon; y++){
     const produced = productionInYear(s.sizeKwp, s.yieldPerKwp, s.degradation, y);
     // real terms: the retail price you avoid is the one that escalates, and the
@@ -391,11 +445,14 @@ function buildCashflows(s){
     const v = annualValue(produced, s.consumption, s.selfShare, retail,
                           inTerm ? s.exportTariff : 0, inTerm ? s.premium : 0);
     const replacement = (s.inverterCost > 0 && y === s.inverterYear) ? s.inverterCost : 0;
+    const operating = v.gross - s.opex - replacement;
+    const capital = (cap.financed && y <= cap.years) ? loanAnnual : 0;
     rows.push({
       year: y, produced, selfKwh: v.selfKwh, exportKwh: v.exportKwh,
       selfValue: v.selfValue, exportValue: v.exportValue, premiumValue: v.premiumValue,
       opex: s.opex + replacement, capex: 0,
-      net: v.gross - s.opex - replacement
+      operating, capital,
+      net: operating - capital
     });
   }
   let cum = 0;
@@ -424,6 +481,10 @@ function npv(rows, rate){
    no rate makes a permanent loss break even, so this returns null rather than
    a misleading number. */
 function irr(rows){
+  // a return needs capital actually put at risk up front. Fully financed there is
+  // none, and "infinite return on nothing invested" is arithmetically true and useless.
+  // One negative year mid-life (the inverter) does not make it a conventional investment.
+  if (!(rows[0].net < 0) || !rows.some(r => r.net > 0)) return null;
   if (npv(rows, 0) <= 0) return null;
   let lo = 0, hi = 1;
   while (npv(rows, hi) > 0 && hi < 1e4) hi *= 2;
@@ -439,24 +500,41 @@ function summarise(s){
   const y1 = rows[1] || rows[0];
   const lifetime = rows[rows.length - 1].cumulative;
   const totalProduced = rows.reduce((a, r) => a + r.produced, 0);
-  const capex = rows[0].capex;
+  const capex = capitalCharge(s).capex;
   const years = rows.length - 1;
   const earning = rows.slice(1);
-  const totalNet = earning.reduce((a, r) => a + r.net, 0);
-  const payback = paybackYears(rows);
-  // What the system puts back in your pocket each month. Year one is the concrete
-  // number; the average is lower because panels fade, the inverter gets replaced
-  // and the export contract eventually runs out.
-  const monthlyY1 = y1.net / 12;
-  const monthlyAvg = years > 0 ? totalNet / years / 12 : 0;
-  // Once the installation is repaid, the same monthly figure is genuinely yours
-  // rather than repaying capital — worth separating, since they read alike.
-  const afterPayback = payback === null ? [] : earning.filter(r => r.year > payback);
-  const monthlyAfter = afterPayback.length
-    ? afterPayback.reduce((a, r) => a + r.net, 0) / afterPayback.length / 12 : 0;
+  const paidUpfront = rows[0].net < 0;
+  const payback = paidUpfront ? paybackYears(rows) : null;
+  const paybackNA = !paidUpfront;
+  const cap = capitalCharge(s);
+
+  // What the panels earn before anything is paid for them. Year one is the best it
+  // gets; the average is lower because panels fade, the inverter is replaced and the
+  // export contract eventually runs out.
+  const monthlyY1 = y1.operating / 12;
+  const monthlyAvg = years > 0 ? earning.reduce((a, r) => a + r.operating, 0) / years / 12 : 0;
+
+  // ...and what the money costs, which the electricity bill never shows you. Net of
+  // that is the figure that actually answers "am I better off each month".
+  const capitalMonthly = cap.monthly;
+  const capitalYears = Math.min(cap.years, s.horizon);
+  const netMonthlyY1 = monthlyY1 - capitalMonthly;
+  // averaged over the horizon the capital charge stops once its term does
+  const netMonthlyAvg = monthlyAvg - (years > 0 ? capitalMonthly * capitalYears / years : 0);
+
+  // When the system stops costing you anything, which is a different date in each mode.
+  // Borrowed, it's the last loan payment. Paid in cash, it's the point the lump has been
+  // earned back — a cash purchase's opportunity cost is spread across the whole horizon
+  // and so never "ends", which would leave this permanently blank if it keyed on the term.
+  const freeFrom = cap.financed ? cap.years : payback;
+  const afterTerm = freeFrom === null ? [] : earning.filter(r => r.year > freeFrom);
+  const monthlyAfter = afterTerm.length
+    ? afterTerm.reduce((a, r) => a + r.operating, 0) / afterTerm.length / 12 : 0;
   return {
     rows, y1, capex, lifetime, totalProduced,
-    payback, monthlyY1, monthlyAvg, monthlyAfter,
+    payback, paybackNA, monthlyY1, monthlyAvg, monthlyAfter, freeFrom,
+    capitalMonthly, capitalYears, netMonthlyY1, netMonthlyAvg,
+    financed: cap.financed, capitalRate: cap.rate,
     irr: irr(rows),
     npv: npv(rows, s.discount),
     // what a kWh is worth on average once the two prices are blended
@@ -482,6 +560,8 @@ function readState(){
     selfShare: num("selfShare") / 100,
     scheme, exportTariff: num("exportTariff"), tariffYears: num("tariffYears"),
     premium: $("urban").checked ? IL.urbanPremium : 0,
+    financeMode: $("financeMode").value,
+    loanRate: num("loanRate") / 100, loanYears: Math.max(1, num("loanYears")),
     opex: num("opex"), inverterCost: num("inverterCost"), inverterYear: num("inverterYear"),
     degradation: num("degradation") / 100,
     horizon: Math.max(1, Math.round(num("horizon"))),
@@ -705,8 +785,9 @@ function sensitivityChart(mount, pts, markIdx){
     const hit = svgEl("rect", {x:sx(i)-band/2, y:padT, width:band, height:plotH, fill:"transparent"});
     hit.addEventListener("mousemove", ev => showTip(
       `<div class="tt">${Math.round(p.share*100)}% used on site</div>
-       <div class="r"><span class="k">Per month, year 1</span><b>${nis(p.monthly)}</b></div>
-       <div class="r"><span class="k">Pays back in</span><b>${p.payback === null ? "never" : yrs(p.payback)}</b></div>
+       <div class="r"><span class="k">Net per month</span><b>${nis(p.monthly)}</b></div>
+       <div class="r"><span class="k">Panels earn</span><b>${nis(p.gross)}</b></div>
+       <div class="r"><span class="k">Pays back in</span><b>${p.paybackNA ? "n/a" : p.payback === null ? "never" : yrs(p.payback)}</b></div>
        <div class="r"><span class="k">Over ${p.horizon} years</span><b>${nisK(p.lifetime)}</b></div>`, ev));
     hit.addEventListener("mouseleave", hideTip);
     svg.appendChild(hit);
@@ -740,23 +821,27 @@ function render(){
   $("tagUse").textContent    = kwh(s.consumption) + "/yr";
   $("tagScheme").textContent = s.scheme === "feed" ? "feed-in" : "net metering";
   $("tagRun").textContent    = s.horizon + " yrs";
+  $("tagPay").textContent    = (r.financed ? "loan" : "cash") + " · " + nis(r.capitalMonthly) + "/mo";
 
   // ---- hero ----
   // the monthly figure is the honest headline, but it reads like free money until you
   // say what it's doing first — so the caption always names the outstanding install cost
   const hero = $("hero");
-  hero.classList.toggle("bad", r.monthlyY1 <= 0);
-  $("heroFig").textContent = (r.monthlyY1 < 0 ? "−" : "") + nis(Math.abs(r.monthlyY1));
-  if (r.monthlyY1 <= 0){
-    $("heroCap").innerHTML = `This system costs more to run than it earns. Check the tariffs
-      and the maintenance figure — something here isn't right.`;
-  } else if (r.payback === null){
-    $("heroCap").innerHTML = `a month in year one — but at ${nis(r.capex)} it never earns the
-      installation back inside ${s.horizon} years, ending ${nis(Math.abs(r.lifetime))} down.`;
+  hero.classList.toggle("bad", r.netMonthlyY1 <= 0);
+  $("heroFig").textContent = (r.netMonthlyY1 < 0 ? "−" : "") + nis(Math.abs(r.netMonthlyY1));
+  const costWord = r.financed ? `the ${nis(r.capitalMonthly)} loan payment`
+                              : `the ${nis(r.capitalMonthly)} the money would have earned elsewhere`;
+  if (r.netMonthlyY1 <= 0){
+    $("heroCap").innerHTML = `The panels earn ${nis(r.monthlyY1)} a month, but ${costWord}
+      costs more than that. On these numbers you'd be <b>${nis(Math.abs(r.netMonthlyY1))} a month
+      worse off</b> for the first ${r.capitalYears} years${r.monthlyAfter > 0
+        ? `, then ${nis(r.monthlyAfter)} a month better off once that's behind you` : ""}.`;
   } else {
-    $("heroCap").innerHTML = `a month in year one, averaging ${nis(r.monthlyAvg)} over
-      ${s.horizon} years. The ${nis(r.capex)} is repaid by year <b>${Math.ceil(r.payback)}</b>;
-      after that it's ${nis(r.monthlyAfter)} a month of clear profit.`;
+    $("heroCap").innerHTML = `a month better off in year one — ${nis(r.monthlyY1)} earned,
+      less ${costWord}. ${r.freeFrom === null
+        ? `It never fully earns the ${nis(r.capex)} back inside ${s.horizon} years.`
+        : `${r.financed ? `The loan ends in year ${s.loanYears}` : `The ${nis(r.capex)} is earned back by year ${Math.ceil(r.freeFrom)}`},
+           after which it's <b>${nis(r.monthlyAfter)} a month</b> clear.`}`;
   }
 
   // ---- tiles ----
@@ -767,21 +852,30 @@ function render(){
       <div class="d">${s.sizeKwp} kWp at ${nis(s.costPerKwp)}/kWp</div></div>
     <div class="tile"><div class="l">Generated, year 1</div><div class="v">${Math.round(r.y1.produced/1000)}k</div>
       <div class="d">kWh — ${pct(coverPct,0)} of what you use</div></div>
-    <div class="tile"><div class="l">Average per month</div>
-      <div class="v ${r.monthlyAvg>=0?"pos":"neg"}">${nis(r.monthlyAvg)}</div>
-      <div class="d">across all ${s.horizon} years, not just the first</div></div>
+    <div class="tile"><div class="l">Panels earn</div><div class="v pos">${nis(r.monthlyY1)}</div>
+      <div class="d">per month, before paying for them</div></div>
+    <div class="tile"><div class="l">The money costs</div>
+      <div class="v neg">−${nis(r.capitalMonthly)}</div>
+      <div class="d">${r.financed ? `loan at ${pct(r.capitalRate*100,2).replace(".00","")}`
+        : `${pct(r.capitalRate*100,2).replace(".00","")} forgone`} over ${r.capitalYears} yrs</div></div>
+    <div class="tile"><div class="l">Net, averaged</div>
+      <div class="v ${r.netMonthlyAvg>=0?"pos":"neg"}">${nis(r.netMonthlyAvg)}</div>
+      <div class="d">per month across all ${s.horizon} years</div></div>
     <div class="tile"><div class="l">Once it's paid for</div>
-      <div class="v ${r.monthlyAfter>0?"pos":""}">${r.payback === null ? "—" : nis(r.monthlyAfter)}</div>
-      <div class="d">${r.payback === null ? "never gets there" : `a month, clear, from year ${Math.ceil(r.payback)}`}</div></div>
+      <div class="v ${r.monthlyAfter>0?"pos":""}">${r.monthlyAfter > 0 ? nis(r.monthlyAfter) : "—"}</div>
+      <div class="d">${r.monthlyAfter > 0 ? `a month, clear, from year ${Math.ceil(r.freeFrom)+1}` : "never gets there"}</div></div>
     <div class="tile"><div class="l">Used on site</div><div class="v">${pct(selfPct,0)}</div>
       <div class="meter"><span style="width:${Math.min(100,selfPct)}%"></span></div>
       <div class="d">worth ${nis(s.retailTariff*1000)}/MWh vs ${nis((s.exportTariff+s.premium)*1000)} exported</div></div>
     <div class="tile"><div class="l">Pays for itself in</div>
-      <div class="v">${r.payback === null ? "never" : yrs(r.payback)}</div>
-      <div class="d">${r.payback === null ? `still ${nis(Math.abs(r.lifetime))} down at ${s.horizon} years` : `then ${nisK(r.lifetime)} net by year ${s.horizon}`}</div></div>
+      <div class="v">${r.paybackNA ? "—" : r.payback === null ? "never" : yrs(r.payback)}</div>
+      <div class="d">${r.paybackNA ? `nothing paid upfront; ${nisK(r.lifetime)} net by year ${s.horizon}`
+        : r.payback === null ? `still ${nis(Math.abs(r.lifetime))} down at ${s.horizon} years`
+        : `then ${nisK(r.lifetime)} net by year ${s.horizon}`}</div></div>
     <div class="tile"><div class="l">Return on the money</div>
       <div class="v">${r.irr === null ? "—" : pct(r.irr*100,1)}</div>
-      <div class="d">${r.irr === null ? "never turns a profit" : `real, vs ${pct(s.discount*100,0)} elsewhere`}</div></div>
+      <div class="d">${r.irr !== null ? `real, vs ${pct(s.discount*100,0)} elsewhere`
+        : r.paybackNA ? "none of your money is in it" : "never turns a profit"}</div></div>
   `;
 
   // ---- verdict ----
@@ -809,6 +903,17 @@ function render(){
   }
   $("verdict").innerHTML = v;
 
+  $("payNote").innerHTML = r.financed
+    ? `<div class="ttl">Borrowing ${nis(r.capex)} over ${s.loanYears} years</div>
+       That's <b>${nis(r.capitalMonthly)} a month</b> at ${pct(s.loanRate*100,2).replace(".00","")} real.
+       Nothing leaves your pocket on day one, so there's no lump to earn back — the question becomes
+       simply whether the panels out-earn the payment, and today they clear it by
+       ${nis(r.monthlyY1 - r.capitalMonthly)}. The loan ends in year ${s.loanYears}; the ${s.horizon - Math.min(s.loanYears, s.horizon)} years after that are unencumbered.`
+    : `<div class="ttl">Paying ${nis(r.capex)} in cash</div>
+       Money in panels isn't money in an index fund. At ${pct(s.discount*100,2).replace(".00","")} real over
+       ${s.horizon} years, tying it up costs <b>${nis(r.capitalMonthly)} a month</b> in returns you don't get.
+       That's the same figure as a loan at the same rate — the cost is real whether or not a bank is charging it.
+       Switch the rate on the "Running it" slider to see how much the comparison depends on it.`;
   $("schemeNote").innerHTML = s.scheme === "feed"
     ? `<div class="ttl">תעריף הזנה — feed-in</div>You're paid <b>${nis(s.exportTariff*100)} per 100 kWh</b> exported
        for ${s.tariffYears} years${s.premium ? `, plus the ${nis(s.premium*100)} urban premium` : ""}.
@@ -872,22 +977,23 @@ function render(){
   for (let share = 0; share <= 1.0001; share += 0.1){
     const o = {...s, selfShare: share};
     const os = summarise(o);
-    pts.push({share, monthly: os.monthlyY1, payback: os.payback,
+    pts.push({share, monthly: os.netMonthlyY1, gross: os.monthlyY1,
+              payback: os.payback, paybackNA: os.paybackNA,
               lifetime: os.lifetime, horizon: s.horizon});
   }
   let markIdx = Math.round(s.selfShare * 10);
   markIdx = Math.max(0, Math.min(pts.length-1, markIdx));
   sensitivityChart("chartSens", pts, markIdx);
-  renderTable("tblSens", ["Used on site","Per month, year 1","Pays back in",`Net over ${s.horizon} years`],
-    pts.map(p => [pct(p.share*100,0), nis(p.monthly),
-      p.payback === null ? "never" : yrs(p.payback), nisK(p.lifetime)]));
+  renderTable("tblSens", ["Used on site","Panels earn","Net per month","Pays back in",`Net over ${s.horizon} years`],
+    pts.map(p => [pct(p.share*100,0), nis(p.gross), nis(p.monthly),
+      p.paybackNA ? "—" : p.payback === null ? "never" : yrs(p.payback), nisK(p.lifetime)]));
 
   let sn = "";
   const at0 = pts[0], at100 = pts[pts.length-1];
   const gain = at100.monthly - at0.monthly;
   if (gain > 0){
     sn += `<div class="note"><div class="ttl">What self-consumption is worth</div>
-      Exporting everything earns <b>${nis(at0.monthly)}</b> a month; using it all yourself,
+      Exporting everything nets <b>${nis(at0.monthly)}</b> a month; using it all yourself,
       <b>${nis(at100.monthly)}</b> — a difference of <b>${nis(gain)}</b> a month for the same panels
       on the same roof. That spread is the whole argument for shifting loads into daylight, and a timer
       on the water heater costs nothing.</div>`;
@@ -911,19 +1017,19 @@ function render(){
     const os = summarise(o);
     // averaged, not year one: a cheaper inverter or rising electricity prices only show
     // up in later years, and a year-one column would report them as doing nothing
-    const dm = os.monthlyAvg - r.monthlyAvg;
+    const dm = os.netMonthlyAvg - r.netMonthlyAvg;
     const mCls = dm > 0.5 ? "var(--good-text)" : dm < -0.5 ? "var(--crit)" : "var(--text-muted)";
     const delta = Math.abs(dm) < 0.5 ? "no change" : `${dm > 0 ? "+" : "−"}${nis(Math.abs(dm))}/mo`;
     const diff = os.lifetime - r.lifetime;
     const dCls = diff > 0 ? "var(--good-text)" : diff < 0 ? "var(--crit)" : "var(--text-muted)";
-    return { sort: os.monthlyAvg, cells: [name, nis(os.monthlyAvg),
+    return { sort: os.netMonthlyAvg, cells: [name, nis(os.netMonthlyAvg),
       `<span style="color:${mCls};font-weight:600">${delta}</span>`,
-      os.payback === null ? "never" : yrs(os.payback),
+      os.paybackNA ? "—" : os.payback === null ? "never" : yrs(os.payback),
       `${nisK(os.lifetime)} <span style="color:${dCls};font-size:11px">(${diff>=0?"+":"−"}${nisK(Math.abs(diff))})</span>`] };
   })
   // biggest monthly gain first, since that's the question the page now leads with
   .sort((a, b) => b.sort - a.sort).map(x => x.cells);
-  renderTable("tblLev", ["Change one thing","Avg per month","Effect","Pays back in",
+  renderTable("tblLev", ["Change one thing","Net avg / month","Effect","Pays back in",
     `Net over ${s.horizon} years`], levRows);
 }
 
@@ -946,6 +1052,10 @@ $("scheme").addEventListener("change", () => {
   $("exportTariff").value = $("scheme").value === "feed" ? IL.feedTariff : IL.netMeterTariff;
   scheduleRender();
 });
+function syncFinance(){
+  $("loanBlock").style.display = $("financeMode").value === "loan" ? "" : "none";
+}
+$("financeMode").addEventListener("change", syncFinance);
 $("btnFitRoof").addEventListener("click", () => {
   const s = readState();
   if (s.m2PerKwp > 0 && s.roofArea > 0)
@@ -970,6 +1080,7 @@ $("themebtn").addEventListener("click", () => {
 
 const FIELDS = ["sizeKwp","costPerKwp","roofArea","m2PerKwp","yieldPerKwp",
   "billMonthly","retailTariff","selfShare","scheme","exportTariff","tariffYears","urban",
+  "financeMode","loanRate","loanYears",
   "opex","inverterCost","inverterYear","degradation","horizon","escalation","discount"];
 
 const readFields = () => Object.fromEntries(FIELDS.map(f => {
@@ -982,6 +1093,7 @@ function writeFields(o){
     const el = $(k);
     if (el.type === "checkbox") el.checked = o[k]; else el.value = o[k];
   });
+  syncFinance();   // reveal the loan fields if the restored state uses them
 }
 
 /* Kept on this device so the numbers survive a reload — localStorage, never a
@@ -1027,6 +1139,7 @@ $("btnForget").addEventListener("click", () => {
   render();   // deliberately not scheduleRender, which would save them again
 });
 
+syncFinance();
 const remembered = store.load();
 if (remembered) writeFields(remembered);
 render();
