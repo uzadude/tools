@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tools</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --border:rgba(11,11,11,0.10); --s1:#2a78d6;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --border:rgba(255,255,255,0.10); --s1:#3987e5;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--text-primary);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.55; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:640px;margin:0 auto;padding:52px 18px 80px}
+h1{font-size:26px;font-weight:650;margin:0 0 6px;letter-spacing:-0.02em}
+.sub{color:var(--text-secondary);font-size:14.5px;margin:0 0 30px}
+a.tool{
+  display:block;text-decoration:none;color:inherit;
+  background:var(--surface-1);border:1px solid var(--border);
+  border-radius:13px;padding:16px 18px;margin-bottom:11px;
+  transition:border-color .12s, transform .12s;
+}
+a.tool:hover{border-color:var(--s1);transform:translateY(-1px)}
+a.tool .n{font-size:16px;font-weight:640;letter-spacing:-0.01em;margin-bottom:2px}
+a.tool .d{color:var(--text-secondary);font-size:13.5px;line-height:1.5}
+footer{color:var(--text-muted);font-size:12.5px;margin-top:36px;
+       border-top:1px solid var(--border);padding-top:18px;line-height:1.6}
+footer a{color:var(--text-secondary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>tools</h1>
+  <p class="sub">Single-file things I actually use. No build step, no dependencies, no network calls — open one and it works, offline.</p>
+
+  <a class="tool" href="finance/index.html">
+    <div class="n">Family finance model</div>
+    <div class="d">When can we retire, how much can we spend, and where does the money go — built on Israeli tax, pension and Bituach Leumi rules.</div>
+  </a>
+
+  <footer>
+    Everything here runs entirely in your browser; nothing you type is sent anywhere.
+    Source on <a href="https://github.com/uzadude/tools">GitHub</a>.
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# ---------------------------------------------------------------
+# Your actual financial data. The model saves your numbers to a
+# JSON file — that file is private and must never be committed.
+# ---------------------------------------------------------------
+family-finances.json
+*.finances.json
+/private/
+/data/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
