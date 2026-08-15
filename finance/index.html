@@ -534,6 +534,14 @@ function childPoints(kidAges, isMother){
   return p;
 }
 
+/* The children's credit points are split: one parent claims at the mother's higher rate,
+   the other at the father's — the same child can't be claimed twice at the top rate. In a
+   mixed couple that's whoever is female. In a same-gender couple, or when there's no
+   partner at all, it falls to A, because somebody has to claim them. */
+function aClaimsChildPoints(ageB, sexA, sexB){
+  return ageB <= 0 || sexA === "f" || sexB !== "f";
+}
+
 function blEmployee(gross){
   const lo = Math.min(gross, IL.blLowCap);
   const hi = Math.max(0, Math.min(gross, IL.blCeiling) - IL.blLowCap);
@@ -609,14 +617,10 @@ function readState(){
   };
 
   // credit points
-  const motherIsB = s.sexB === "f";
-  s.pointsA = (s.sexA === "f" ? IL.basePointsF : IL.basePointsM) + childPoints(kidAges, s.sexA === "f" && !motherIsB ? true : s.sexA === "f");
-  s.pointsB = (s.sexB === "f" ? IL.basePointsF : IL.basePointsM) + childPoints(kidAges, s.sexB === "f");
-  // avoid double-counting the "mother" column when both are the same gender
-  if (s.sexA === "f" && s.sexB === "f") s.pointsB = IL.basePointsF + childPoints(kidAges, false);
-  if (s.sexA === "m" && s.sexB === "m") s.pointsA = IL.basePointsM + childPoints(kidAges, true);
+  const aClaimsChildren = aClaimsChildPoints(s.ageB, s.sexA, s.sexB);
+  s.pointsA = (s.sexA === "f" ? IL.basePointsF : IL.basePointsM) + childPoints(kidAges, aClaimsChildren);
+  s.pointsB = (s.sexB === "f" ? IL.basePointsF : IL.basePointsM) + childPoints(kidAges, !aClaimsChildren);
 
-  s.isCouple = s.ageB > 0 && s.typeB !== "none" || s.ageB > 0;
   return s;
 }
 
@@ -1202,7 +1206,6 @@ function tradeoffChart(mount, pts, markIdx){
       stroke:cssv("--surface-1"), "stroke-width":3.5, "paint-order":"stroke"});
     t.textContent = "you: " + mp.age;
     svg.appendChild(t);
-    const bb = t.getBBox ? null : null;
     // keep it inside the plot if the marker sits at either edge
     const half = 26;
     const x = Math.min(W - padR - half, Math.max(padL + half, sx(markIdx)));
@@ -1537,9 +1540,11 @@ function render(){
        <b>${nis(first.mixSavings)}</b> has to come out of savings.`
     : "";
   const coversFrom = retRowsAll.find(r => r.mixSavings === 0 && r.mixSpend > 0);
-  const spare = 0;
+  // measured against the lifestyle, not read off the rsp slider — that slider is only live
+  // in "pct" mode, and quoting its stale value in the other two modes was simply wrong
+  const retireVsLifestyle = c.lifestyleBase ? c.retireSpend / c.lifestyleBase * 100 : 0;
   $("ddHint").innerHTML = `In retirement you'd need <b>${nis(c.retireSpend)}</b> a month
-    — that's ${pct(s.rsp*100,0)} of today's lifestyle spending, with the mortgage and kids' costs already taken out.
+    — that's ${pct(retireVsLifestyle,0)} of today's lifestyle spending, with the mortgage and kids' costs already taken out.
     ${mixTxt}
     ${coversFrom ? `<br>From age ${coversFrom.age} the pension and Bituach Leumi cover the whole thing, and the savings stop being drawn on.` : ""}`;
 

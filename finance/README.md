@@ -18,6 +18,19 @@ The model ships with example figures so you can see it working; replace them wit
 every number and chart recalculates as you type. **Save my numbers** downloads a small JSON
 you can reload later — that file is gitignored here, and you should keep it that way.
 
+## Checking it still adds up
+
+```
+node finance/test.mjs
+```
+
+No framework and nothing to install. It reads `index.html`, pulls the pure functions out of
+it and pins them: every 2026 bracket edge, the Bituach Leumi ceiling, the child credit-point
+bands, who claims those points, the annuity exemption, and a round-trip proving the solved
+mortgage rate really amortises the balance to zero over the term. Because it slices the
+shipped file rather than a copy, the assertions can't quietly drift away from the model.
+Worth running after touching any rate — the whole point of a rates table is that it changes.
+
 ## What it models
 
 **Income and tax.** 2026 income tax brackets including January's reform, credit points for

@@ -14,7 +14,8 @@ forever. Nothing you type into any of them leaves the page.
 
 Each tool is a folder containing `index.html` and a `README.md`. That keeps GitHub Pages
 URLs clean (`/tools/finance/` serves the model directly) and means a tool can be copied out
-and used on its own without dragging anything with it.
+and used on its own without dragging anything with it. A tool doing arithmetic anyone would
+act on also carries a `test.mjs` — plain `node`, no framework, run it directly.
 
 The rules that keep these useful:
 
