@@ -18,6 +18,13 @@ The model ships with example figures so you can see it working; replace them wit
 every number and chart recalculates as you type. **Save my numbers** downloads a small JSON
 you can reload later — that file is gitignored here, and you should keep it that way.
 
+Your figures are also remembered in this browser as you type, so closing the tab doesn't cost
+you the afternoon's work. That's `localStorage` on your own machine — it never touches a
+network, and no server is involved at any point. It does persist on disk until you clear it:
+**Forget my numbers** erases it and puts the example figures back. On a machine that isn't
+yours, use that before you walk away. The JSON export remains the copy you actually own and
+the only way to move your figures between devices.
+
 ## Checking it still adds up
 
 ```

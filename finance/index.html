@@ -335,8 +335,12 @@ footer a{color:var(--text-secondary)}
     <button class="pri" id="btnSave">Save my numbers</button>
     <button id="btnLoad">Load a saved file</button>
     <button id="btnReset">Reset to example</button>
+    <button id="btnForget">Forget my numbers</button>
     <input type="file" id="fileIn" accept=".json" style="display:none">
   </div>
+  <p class="hint" style="margin:11px 0 0">Your numbers are remembered on this device, so they're
+    still here next time you open the page. They stay in your browser — nothing is uploaded anywhere.
+    <b>Forget my numbers</b> erases them from this device; <b>Save my numbers</b> downloads a copy you keep.</p>
 </div>
 
 <!-- ============ TRADE-OFF ============ -->
@@ -1529,17 +1533,25 @@ function render(){
    WIRING
    ============================================================ */
 let raf;
-function scheduleRender(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }
+// every path that changes an input comes through here, so it's also the one place that has
+// to remember them. store is defined further down but only ever reached from an event.
+function scheduleRender(){
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { render(); store.save(); });
+}
 
 document.querySelectorAll("input, select").forEach(el => {
   el.addEventListener("input", scheduleRender);
   el.addEventListener("change", scheduleRender);
 });
-$("ownRent").addEventListener("change", () => {
+// a plain function rather than something writeFields has to fake a change event to reach —
+// a synthetic event here would be picked up by the listener above and quietly re-save
+function syncHousing(){
   const own = $("ownRent").value === "own";
   $("ownBlock").style.display  = own ? "" : "none";
   $("rentBlock").style.display = own ? "none" : "";
-});
+}
+$("ownRent").addEventListener("change", syncHousing);
 document.querySelectorAll("[data-toggle]").forEach(b => {
   b.addEventListener("click", () => {
     const t = $(b.dataset.toggle);
@@ -1564,10 +1576,34 @@ const FIELDS = ["ageA","sexA","ageB","sexB","kids","typeA","grossA","typeB","gro
   "spHouse","spFood","spDining","spTransport","spEdu","spHealth","spShop","spTravel","spOther","eduEnds",
   "ret","retP","swr","rspFixed","planTo","hg","targetAge","convFactor","downsize","oneOff","useBituach"];
 
+const readFields = () => Object.fromEntries(FIELDS.map(f => {
+  const el = $(f);
+  return [f, el.type === "checkbox" ? el.checked : el.value];
+}));
+function writeFields(o){
+  FIELDS.forEach(k => {
+    if (!(k in o)) return;
+    const el = $(k);
+    if (el.type === "checkbox") el.checked = o[k]; else el.value = o[k];
+  });
+  syncHousing();   // reveal the right housing block
+}
+
+/* Your numbers are kept on this device so they survive a reload. This is still entirely
+   local — localStorage, never a network — but it does mean they sit on disk until you
+   clear them, which is what "Forget my numbers" is for. The JSON export stays the copy
+   you actually own and can move between machines. */
+const KEY = "family-finances";
+const store = {
+  // localStorage throws in private mode and on some file:// origins. A tool whose whole
+  // point is working offline shouldn't break because it can't remember.
+  save(){ try { localStorage.setItem(KEY, JSON.stringify(readFields())); } catch(e){} },
+  load(){ try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch(e){ return null; } },
+  clear(){ try { localStorage.removeItem(KEY); } catch(e){} }
+};
+
 $("btnSave").addEventListener("click", () => {
-  const o = {};
-  FIELDS.forEach(f => { const el = $(f); o[f] = el.type === "checkbox" ? el.checked : el.value; });
-  const blob = new Blob([JSON.stringify(o, null, 2)], {type:"application/json"});
+  const blob = new Blob([JSON.stringify(readFields(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "family-finances.json";
@@ -1577,32 +1613,35 @@ $("btnSave").addEventListener("click", () => {
 // box doesn't — fills the target with the lifestyle figure instead of making you copy it
 $("btnSameLifestyle").addEventListener("click", () => {
   $("rspFixed").value = Math.round(compute(readState()).lifestyleBase);
-  render();
+  scheduleRender();
 });
 $("btnLoad").addEventListener("click", () => $("fileIn").click());
 $("fileIn").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
   r.onload = () => {
-    try {
-      const o = JSON.parse(r.result);
-      FIELDS.forEach(k => { if (k in o){ const el = $(k);
-        if (el.type === "checkbox") el.checked = o[k]; else el.value = o[k]; } });
-      $("ownRent").dispatchEvent(new Event("change"));
-      render();
-    } catch(err){ alert("Couldn't read that file."); }
+    try { writeFields(JSON.parse(r.result)); scheduleRender(); }
+    catch(err){ alert("Couldn't read that file."); }
   };
   r.readAsText(f);
 });
-const DEFAULTS = {};
-FIELDS.forEach(f => { const el = $(f); DEFAULTS[f] = el.type === "checkbox" ? el.checked : el.value; });
-$("btnReset").addEventListener("click", () => {
-  FIELDS.forEach(k => { const el = $(k);
-    if (el.type === "checkbox") el.checked = DEFAULTS[k]; else el.value = DEFAULTS[k]; });
-  $("ownRent").dispatchEvent(new Event("change"));
-  render();
+
+// snapshot the example figures from the markup before anything restores over them, or
+// "Reset to example" would reset to whatever was last remembered instead
+const DEFAULTS = readFields();
+
+$("btnReset").addEventListener("click", () => { writeFields(DEFAULTS); scheduleRender(); });
+$("btnForget").addEventListener("click", () => {
+  // clicking this button blurs whatever field had focus, and that change event has already
+  // queued a save. Drop it, or it lands after the clear and puts the numbers straight back.
+  cancelAnimationFrame(raf);
+  store.clear();
+  writeFields(DEFAULTS);
+  render();   // deliberately not scheduleRender — that would save them again too
 });
 
+const remembered = store.load();
+if (remembered) writeFields(remembered);
 render();
 </script>
 </body>
