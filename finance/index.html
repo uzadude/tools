@@ -304,21 +304,10 @@ footer a{color:var(--text-secondary)}
       </div>
 
       <h3>What you want to spend in retirement</h3>
-      <label class="f"><span>How should I set it?</span>
-        <select id="rspMode">
-          <option value="same">Keep exactly today's lifestyle</option>
-          <option value="pct">A percentage of today's lifestyle</option>
-          <option value="fixed">A specific amount I choose</option>
-        </select></label>
-      <div id="rspPctBlock" style="display:none">
-        <div class="rangerow">
-          <div class="lab"><span>Percentage of today's lifestyle</span><b id="vRsp">100%</b></div>
-          <input type="range" id="rsp" min="40" max="150" step="5" value="100">
-        </div>
-      </div>
-      <div id="rspFixedBlock" style="display:none">
-        <label class="f"><span>Monthly spending in retirement <span class="tiny">(₪, today's money, every month until the end)</span></span>
-          <input type="number" id="rspFixed" value="20000" step="500"></label>
+      <label class="f" style="margin-bottom:6px"><span>Monthly spending in retirement <span class="tiny">(₪, today's money, every month until the end)</span></span>
+        <input type="number" id="rspFixed" value="20000" step="500"></label>
+      <div class="btnrow" style="margin:0 0 12px">
+        <button class="mini" id="btnSameLifestyle">Match today's lifestyle</button>
       </div>
       <div id="rspExplain" class="note"></div>
 
@@ -610,7 +599,7 @@ function readState(){
     },
     eduEnds:$("eduEnds").checked,
     ret:num("ret")/100, retP:num("retP")/100, swr:num("swr")/100,
-    rsp:num("rsp")/100, rspMode:$("rspMode").value, rspFixed:num("rspFixed"),
+    rspFixed:num("rspFixed"),
     planTo:num("planTo"), hg:num("hg")/100,
     targetAge:num("targetAge"), convFactor:num("convFactor"),
     downsize:num("downsize"), oneOff:num("oneOff"), useBituach:$("useBituach").checked
@@ -664,10 +653,7 @@ function compute(s){
   // built on this, so "same lifestyle" means exactly this number.
   const lifestyleBase = lifestyleSpend - s.sp.Education;
 
-  let retireSpend;
-  if (s.rspMode === "same")       retireSpend = lifestyleBase;
-  else if (s.rspMode === "fixed") retireSpend = s.rspFixed;
-  else                            retireSpend = lifestyleBase * s.rsp;
+  const retireSpend = s.rspFixed;
 
   return {A,B,netIncome,bonusNetMonthly,housingFixed,spendCats,lifestyleSpend,lifestyleBase,
           totalSpend,surplus,pensionFlow,khFlow,forcedSaving,totalSaving,savingsRate,grossHousehold,
@@ -847,7 +833,7 @@ function maxSpendAt(s, retireAge){
   let lo = 0, hi = 250000;
   for (let i = 0; i < 30; i++){
     const mid = (lo + hi) / 2;
-    const o = {...s, rspMode:"fixed", rspFixed: mid};
+    const o = {...s, rspFixed: mid};
     if (simulate(o, compute(o), retireAge).ok) lo = mid; else hi = mid;
   }
   return Math.max(0, Math.round(lo/100)*100);
@@ -1270,16 +1256,13 @@ function render(){
   $("vRet").textContent  = pct(s.ret*100,2).replace(".00","");
   $("vRetP").textContent = pct(s.retP*100,2).replace(".00","");
   $("vSwr").textContent  = pct(s.swr*100,1);
-  $("vRsp").textContent  = pct(s.rsp*100,0);
-  $("rspExplain").innerHTML = `<div class="ttl">This works out to ${nis(c.retireSpend)} a month</div>
+  const vsLifestyle = c.lifestyleBase ? c.retireSpend / c.lifestyleBase * 100 : 0;
+  $("rspExplain").innerHTML = `<div class="ttl">You've asked for ${nis(c.retireSpend)} a month —
+    ${pct(vsLifestyle,0)} of today's lifestyle</div>
     Today you spend ${nis(c.totalSpend)} all in. Take out
     ${s.ownRent==="own" ? `the mortgage (${nis(c.housingFixed)})` : `rent (${nis(c.housingFixed)})`}
     ${s.sp.Education>0 ? `and the kids (${nis(s.sp.Education)})` : ""} and the lifestyle itself is
-    <b>${nis(c.lifestyleBase)}</b>. ${s.rspMode==="same"
-      ? "You've chosen to keep exactly that."
-      : s.rspMode==="fixed"
-        ? `You've asked for ${nis(s.rspFixed)} — that's ${pct(c.lifestyleBase ? s.rspFixed/c.lifestyleBase*100 : 0,0)} of it.`
-        : `At ${pct(s.rsp*100,0)} that's ${nis(c.retireSpend)}.`}
+    <b>${nis(c.lifestyleBase)}</b> — that's what "match today's lifestyle" fills in.
     ${s.ownRent==="own" && s.mortYears > 0 ? `<br>If you stop before the mortgage ends, its ${nis(c.housingFixed)} is added on top until it's paid off.` : ""}`;
   $("vPlanTo").textContent = s.planTo;
   $("vHg").textContent   = pct(s.hg*100,2).replace(".00","");
@@ -1296,7 +1279,8 @@ function render(){
   hero.classList.toggle("bad", earliest === null);
   if (earliest === null){
     $("heroFig").textContent = "Not yet";
-    $("heroCap").innerHTML = "On these numbers the pot never gets big enough. Try the levers below.";
+    $("heroCap").innerHTML = `On these numbers <b>${nis(c.retireSpend)}</b>/month never funds itself, at any age.
+      Lower the target, or try the levers at the bottom.`;
   } else if (earliest <= s.ageA){
     $("heroFig").textContent = "Now";
     $("heroCap").innerHTML = `You already have enough to fund ${nis(c.retireSpend)}/month to age ${s.planTo}.`;
@@ -1339,7 +1323,7 @@ function render(){
   // ================= TRADE-OFF =================
   // "what does each lifestyle cost me in years?" — one full simulation per spending level
   const ageForSpend = monthly => {
-    const o = {...s, rspMode:"fixed", rspFixed: monthly};
+    const o = {...s, rspFixed: monthly};
     return earliestRetirement(o, compute(o));
   };
   const sameAge = ageForSpend(c.lifestyleBase);
@@ -1365,9 +1349,7 @@ function render(){
   }
 
   $("tPlanTo").textContent = s.planTo;
-  const modeTxt = s.rspMode === "same" ? "today's lifestyle exactly"
-    : s.rspMode === "fixed" ? `your chosen ${nis(s.rspFixed)}/month`
-    : `${pct(s.rsp*100,0)} of today's lifestyle`;
+  const modeTxt = `your target of ${nis(c.retireSpend)}/month`;
   const parts = [];
   if (c.housingFixed > 0) parts.push(s.ownRent === "own"
     ? `the mortgage (${nis(c.housingFixed)}), which ends once it's paid off`
@@ -1540,11 +1522,8 @@ function render(){
        <b>${nis(first.mixSavings)}</b> has to come out of savings.`
     : "";
   const coversFrom = retRowsAll.find(r => r.mixSavings === 0 && r.mixSpend > 0);
-  // measured against the lifestyle, not read off the rsp slider — that slider is only live
-  // in "pct" mode, and quoting its stale value in the other two modes was simply wrong
-  const retireVsLifestyle = c.lifestyleBase ? c.retireSpend / c.lifestyleBase * 100 : 0;
   $("ddHint").innerHTML = `In retirement you'd need <b>${nis(c.retireSpend)}</b> a month
-    — that's ${pct(retireVsLifestyle,0)} of today's lifestyle spending, with the mortgage and kids' costs already taken out.
+    — that's ${pct(vsLifestyle,0)} of today's lifestyle spending, with the mortgage and kids' costs already taken out.
     ${mixTxt}
     ${coversFrom ? `<br>From age ${coversFrom.age} the pension and Bituach Leumi cover the whole thing, and the savings stop being drawn on.` : ""}`;
 
@@ -1577,7 +1556,10 @@ function render(){
     ["Earn ₪5,000/month more (gross)",o => { o.grossA += 5000; }],
     ["Returns 1 point better",        o => { o.ret += 0.01; o.retP += 0.01; }],
     ["Returns 1 point worse",         o => { o.ret -= 0.01; o.retP -= 0.01; }],
-    ["Retire on 70% of today's spend",o => { o.rsp = 0.70; }],
+    ["Retire on 70% of today's spend",o => { const base = Object.entries(o.sp)
+                                              .filter(([k]) => k !== "Education")
+                                              .reduce((a,[,v]) => a+v, 0);
+                                              o.rspFixed = base * 0.70; }],
     ["Downsize the home, release ₪800K", o => { o.downsize += 800000; }],
     ["Withdraw at 4% instead",        o => { o.swr = 0.04; }]
   ];
@@ -1616,12 +1598,6 @@ document.querySelectorAll("input, select").forEach(el => {
   el.addEventListener("input", scheduleRender);
   el.addEventListener("change", scheduleRender);
 });
-function syncRspMode(){
-  const m = $("rspMode").value;
-  $("rspPctBlock").style.display   = m === "pct"   ? "" : "none";
-  $("rspFixedBlock").style.display = m === "fixed" ? "" : "none";
-}
-$("rspMode").addEventListener("change", syncRspMode);
 $("ownRent").addEventListener("change", () => {
   const own = $("ownRent").value === "own";
   $("ownBlock").style.display  = own ? "" : "none";
@@ -1649,7 +1625,7 @@ const FIELDS = ["ageA","sexA","ageB","sexB","kids","typeA","grossA","typeB","gro
   "hishA","hishB","pensionAbove","pensA","pensB","khA","khB","gemel","broker","cash","otherAsset",
   "ownRent","homeVal","mortBal","mortPay","mortYears","rent","debtBal","debtPay",
   "spHouse","spFood","spDining","spTransport","spEdu","spHealth","spShop","spTravel","spOther","eduEnds",
-  "ret","retP","swr","rsp","rspMode","rspFixed","planTo","hg","targetAge","convFactor","downsize","oneOff","useBituach"];
+  "ret","retP","swr","rspFixed","planTo","hg","targetAge","convFactor","downsize","oneOff","useBituach"];
 
 $("btnSave").addEventListener("click", () => {
   const o = {};
@@ -1659,6 +1635,12 @@ $("btnSave").addEventListener("click", () => {
   a.href = URL.createObjectURL(blob);
   a.download = "family-finances.json";
   a.click(); URL.revokeObjectURL(a.href);
+});
+// the one affordance the old "keep exactly today's lifestyle" mode had that a bare number
+// box doesn't — fills the target with the lifestyle figure instead of making you copy it
+$("btnSameLifestyle").addEventListener("click", () => {
+  $("rspFixed").value = Math.round(compute(readState()).lifestyleBase);
+  render();
 });
 $("btnLoad").addEventListener("click", () => $("fileIn").click());
 $("fileIn").addEventListener("change", e => {
@@ -1670,7 +1652,6 @@ $("fileIn").addEventListener("change", e => {
       FIELDS.forEach(k => { if (k in o){ const el = $(k);
         if (el.type === "checkbox") el.checked = o[k]; else el.value = o[k]; } });
       $("ownRent").dispatchEvent(new Event("change"));
-      syncRspMode();
       render();
     } catch(err){ alert("Couldn't read that file."); }
   };
@@ -1682,11 +1663,9 @@ $("btnReset").addEventListener("click", () => {
   FIELDS.forEach(k => { const el = $(k);
     if (el.type === "checkbox") el.checked = DEFAULTS[k]; else el.value = DEFAULTS[k]; });
   $("ownRent").dispatchEvent(new Event("change"));
-  syncRspMode();
   render();
 });
 
-syncRspMode();
 render();
 </script>
 </body>
