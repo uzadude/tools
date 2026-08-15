@@ -364,14 +364,6 @@ footer a{color:var(--text-secondary)}
     <div id="chartA"></div>
     <div class="tblwrap" id="tblA"></div>
   </div>
-  <div class="chartcard">
-    <div class="chead"><h2 style="font-size:13.5px">You vs. the average Israeli household</h2>
-      <button class="mini" data-toggle="tblB">Table</button></div>
-    <p class="hint" style="margin-top:4px">Share of total spending. Benchmark is the CBS Household Expenditure Survey (2023 data, published 2026) — average household spend 18,088 ₪/month.</p>
-    <div class="legend" id="legB"></div>
-    <div id="chartB"></div>
-    <div class="tblwrap" id="tblB"></div>
-  </div>
   <div id="budNotes"></div>
 </div>
 
@@ -467,8 +459,7 @@ const IL = {
   earlyPensionAge: 60,
   blOldAgeSingle: 1838, blOldAgeCouple: 2762,
   // CBS benchmark, 2023 survey
-  cbsTotal: 18088,
-  cbsShares: { Housing: 0.253, "Transport & comms": 0.186, Food: 0.179, "Everything else": 0.382 }
+  cbsTotal: 18088
 };
 
 // women's retirement age by birth year
@@ -931,57 +922,6 @@ function hBars(mount, data, opts = {}){
   el.appendChild(svg);
 }
 
-/* ---------- Grouped horizontal bars, two series ---------- */
-function hBarsGrouped(mount, data, series, opts = {}){
-  const el = $(mount); el.innerHTML = "";
-  const rowH = 46, padL = 122, padR = 56, padT = 6, padB = 22;
-  const W = Math.max(320, el.clientWidth || 600);
-  const H = padT + data.length*rowH + padB;
-  const plotW = W - padL - padR;
-  const max = Math.max(...data.flatMap(d => d.v), 1);
-  const ticks = niceTicks(max, 3);
-  const tmax = ticks[ticks.length-1];
-  const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img"});
-
-  for (const t of ticks){
-    const x = padL + (t/tmax)*plotW;
-    svg.appendChild(svgEl("line", {x1:x, y1:padT, x2:x, y2:padT+data.length*rowH,
-      stroke:cssv("--grid"), "stroke-width":1}));
-    const lb = svgEl("text", {x, y:H-6, "text-anchor":"middle", fill:cssv("--text-muted"),
-      "font-size":10.5, "font-family":"inherit"});
-    lb.textContent = Math.round(t) + "%"; svg.appendChild(lb);
-  }
-
-  data.forEach((d,i) => {
-    const y0 = padT + i*rowH;
-    const lab = svgEl("text", {x:padL-10, y:y0+rowH/2+4, "text-anchor":"end",
-      fill:cssv("--text-secondary"), "font-size":12, "font-family":"inherit"});
-    lab.textContent = d.k; svg.appendChild(lab);
-
-    const bh = 14;
-    d.v.forEach((v,j) => {
-      // 2px surface gap between the two adjacent bars
-      const yy = y0 + rowH/2 - bh - 1 + j*(bh+2);
-      const w = Math.max(2, (v/tmax)*plotW);
-      svg.appendChild(svgEl("rect", {x:padL, y:yy, width:w, height:bh, rx:4, fill:series[j].color}));
-      svg.appendChild(svgEl("rect", {x:padL, y:yy, width:Math.min(4,w), height:bh, fill:series[j].color}));
-      const t2 = svgEl("text", {x:padL+w+7, y:yy+bh-2.5, fill:cssv("--text-primary"),
-        "font-size":11, "font-family":"inherit", "font-weight": j===0?600:400});
-      t2.textContent = v.toFixed(0)+"%"; svg.appendChild(t2);
-    });
-
-    const hit = svgEl("rect", {x:0,y:y0,width:W,height:rowH,fill:"transparent"});
-    hit.addEventListener("mousemove", ev => showTip(
-      `<div class="tt">${esc(d.k)}</div>` + d.v.map((v,j) =>
-        `<div class="r"><span class="k"><span style="width:9px;height:9px;border-radius:2px;background:${series[j].color};display:inline-block"></span>${series[j].name}</span><b>${v.toFixed(1)}%</b></div>`
-      ).join("") +
-      `<div class="r"><span class="k">You, per month</span><b>${nis(d.abs)}</b></div>`, ev));
-    hit.addEventListener("mouseleave", hideTip);
-    svg.appendChild(hit);
-  });
-  el.appendChild(svg);
-}
-
 /* ---------- Stacked columns over time ---------- */
 function stackedCols(mount, rows, series, opts = {}){
   const fmt = opts.fmt || nisK;
@@ -1412,9 +1352,9 @@ function render(){
     {k:"Kids & school", v:s.sp.Education}, {k:"Housing running", v:s.sp.Housing},
     {k:"Eating out", v:s.sp.Dining}, {k:"Travel", v:s.sp.Travel},
     {k:"Shopping", v:s.sp.Shopping}, {k:"Health & insurance", v:s.sp.Health},
-    {k:"Everything else", v:s.sp.Other}
+    {k:"Everything else", v:s.sp.Other},
+    {k:"Debt repayment", v:s.debtPay}
   ].filter(d => d.v > 0).sort((a,b) => b.v - a.v);
-  if (s.debtPay > 0) catList.push({k:"Debt repayment", v:s.debtPay});
   catList.forEach(d => d.share = c.totalSpend ? d.v/c.totalSpend : 0);
 
   $("budHint").innerHTML = `You spend <b>${nis(c.totalSpend)}</b> a month — ${nis(c.totalSpend*12)} a year. That's ${pct(c.netIncome? c.totalSpend/c.netIncome*100:0,0)} of your net income.`;
@@ -1422,36 +1362,16 @@ function render(){
   renderTable("tblA", ["Category","Per month","Per year","Share"],
     catList.map(d => [d.k, nis(d.v), nis(d.v*12), pct(d.share*100,1)]));
 
-  // vs CBS
-  const yourHousing   = c.housingFixed + s.sp.Housing;
-  const yourTransport = s.sp.Transport;
-  const yourFood      = s.sp.Food + s.sp.Dining;
-  const yourElse      = c.totalSpend - yourHousing - yourTransport - yourFood;
-  const T = c.totalSpend || 1;
-  const cmp = [
-    {k:"Housing", abs:yourHousing, v:[yourHousing/T*100, 25.3]},
-    {k:"Transport & comms", abs:yourTransport, v:[yourTransport/T*100, 18.6]},
-    {k:"Food", abs:yourFood, v:[yourFood/T*100, 17.9]},
-    {k:"Everything else", abs:yourElse, v:[yourElse/T*100, 38.2]}
-  ];
-  const seriesB = [{name:"Your household", color:S("s1")}, {name:"Israeli average", color:S("s2")}];
-  $("legB").innerHTML = seriesB.map(x =>
-    `<span class="it"><span class="sw" style="background:${x.color}"></span>${x.name}</span>`).join("");
-  hBarsGrouped("chartB", cmp, seriesB);
-  renderTable("tblB", ["Category","You (₪/mo)","You (%)","Israeli avg (%)","Difference"],
-    cmp.map(d => [d.k, nis(d.abs), pct(d.v[0],1), pct(d.v[1],1),
-      (d.v[0]-d.v[1]>=0?"+":"") + (d.v[0]-d.v[1]).toFixed(1) + " pts"]));
-
   // budget notes
   let bn = "";
   const spendRatio = c.totalSpend / IL.cbsTotal;
   bn += `<div class="note"><div class="ttl">For context</div>
-    Your ${nis(c.totalSpend)} is <b>${spendRatio.toFixed(1)}×</b> the national average household spend of ₪18,088.
+    Your ${nis(c.totalSpend)} is <b>${spendRatio.toFixed(1)}×</b> the national average household spend of ₪${IL.cbsTotal.toLocaleString("en-US")}.
     That's expected if your income is well above average — the number that matters isn't how much you spend, it's the ${pct(srPct,0)} you keep.</div>`;
-  const biggest = cmp.reduce((a,b) => (b.v[0]-b.v[1]) > (a.v[0]-a.v[1]) ? b : a);
-  if (biggest.v[0] - biggest.v[1] > 4){
-    bn += `<div class="note warn"><div class="ttl" style="color:var(--warn)">${icoWarn}${biggest.k} is your outlier</div>
-      It takes ${pct(biggest.v[0],0)} of your spending vs ${pct(biggest.v[1],0)} nationally. Not wrong in itself — but if you want to move the retirement date, this is the largest single block to look at first.</div>`;
+  const biggest = catList[0];
+  if (biggest && biggest.share > 0.25){
+    bn += `<div class="note warn"><div class="ttl" style="color:var(--warn)">${icoWarn}${biggest.k} is your biggest block</div>
+      It takes ${pct(biggest.share*100,0)} of everything you spend. Not wrong in itself — but if you want to move the retirement date, this is the largest single line to look at first.</div>`;
   }
   if (srPct >= 25) bn += `<div class="note ok"><div class="ttl" style="color:var(--good-text)">${icoOk}Strong savings rate</div>
     ${pct(srPct,0)} of gross is well above typical. Savings rate is the single most powerful variable in this whole model — more than returns, more than tax optimisation.</div>`;
