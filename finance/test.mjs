@@ -16,13 +16,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, "index.html"), "utf8");
 
 const from = src.indexOf("const IL = {");
-// stop at the start of the SIMULATION banner, not inside it — cutting mid-comment
-// leaves the block unterminated
-const to = src.lastIndexOf("/*", src.indexOf("   SIMULATION"));
+// everything up to the chart helpers is pure; the first thing after them touches the DOM.
+// cut at the start of that banner, not inside it, or the comment block is left unterminated
+const to = src.lastIndexOf("/*", src.indexOf("   SVG CHART HELPERS"));
 assert.ok(from > 0 && to > from, "could not locate the pure section in index.html");
 
 const EXPORTS = ["IL", "retAgeFemale", "progressiveTax", "childPoints", "aClaimsChildPoints",
-  "blEmployee", "blSelf", "earner", "mortgageRate", "convAt", "netAnnuity"];
+  "blEmployee", "blSelf", "earner", "mortgageRate", "convAt", "netAnnuity",
+  "compute", "simulate", "earliestRetirement"];
 const m = new Function(`${src.slice(from, to)}; return {${EXPORTS.join(",")}};`)();
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) < tol, `${msg}: got ${a}, want ~${b}`);
@@ -128,6 +129,82 @@ test("an employee's net plus every deduction equals gross", () => {
 test("a non-earner is all zeroes", () => {
   const e = m.earner(0, "none", 2.25, false, false);
   for (const k of ["gross", "net", "tax", "bl", "pension", "kh"]) assert.equal(e[k], 0, k);
+});
+
+/* ---- rent vs mortgage in the retirement target ----
+   A mortgage ends, so it sits outside the target and is charged on top until it's paid off.
+   Rent never ends, so it lives inside the target. The bug this guards against is charging
+   rent in both places, or in neither. */
+const household = (over = {}) => ({
+  ageA: 38, ageB: 37, sexA: "m", sexB: "f", kidAges: [], eduEnds: true,
+  typeA: "sachir", typeB: "sachir", grossA: 23000, grossB: 15000,
+  pointsA: 2.25, pointsB: 2.75, hishA: true, hishB: true, pensAbove: true,
+  bonus: 0, otherInc: 0,
+  pensA: 330000, pensB: 190000, khA: 110000, khB: 60000,
+  gemel: 45000, broker: 100000, cash: 80000, otherAsset: 0,
+  ownRent: "rent", homeVal: 0, mortBal: 0, mortPay: 7400, mortYears: 0, rent: 7500,
+  debtBal: 0, debtPay: 0,
+  sp: { Housing: 2600, Food: 5000, Dining: 1400, Transport: 3500, Education: 0,
+        Health: 1600, Shopping: 1600, Travel: 1400, Other: 1200 },
+  ret: 0.05, retP: 0.04, swr: 0.035, rspFixed: 20000, planTo: 95, hg: 0.005,
+  targetAge: 60, convFactor: 200, downsize: 0, oneOff: 0, useBituach: true,
+  ...over,
+});
+const LIFESTYLE = 2600 + 5000 + 1400 + 3500 + 1600 + 1600 + 1400 + 1200;   // no Education
+
+test("a renter's rent is inside the lifestyle figure", () => {
+  const c = m.compute(household({ ownRent: "rent", rent: 7500 }));
+  near(c.lifestyleBase, LIFESTYLE + 7500, 1e-9, "rent counted in");
+});
+test("an owner's mortgage is not — it ends", () => {
+  const c = m.compute(household({ ownRent: "own", mortPay: 7400, mortYears: 21 }));
+  near(c.lifestyleBase, LIFESTYLE, 1e-9, "mortgage left out");
+});
+test("raising the rent raises the lifestyle figure one for one", () => {
+  const a = m.compute(household({ rent: 7500 })).lifestyleBase;
+  const b = m.compute(household({ rent: 9500 })).lifestyleBase;
+  near(b - a, 2000, 1e-9, "pound for pound");
+});
+test("total spending today is the same either way", () => {
+  const r = m.compute(household({ ownRent: "rent", rent: 7400 })).totalSpend;
+  const o = m.compute(household({ ownRent: "own", mortPay: 7400, mortYears: 21 })).totalSpend;
+  near(r, o, 1e-9, "same outgoings, different tenure");
+});
+
+test("a renter's rent is charged exactly once in retirement", () => {
+  const s = household({ ownRent: "rent", rent: 7500, rspFixed: 25800 });
+  const retired = m.simulate(s, m.compute(s), 60).rows.filter(r => r.retired);
+  assert.ok(retired.length > 0, "the household does retire");
+  // the target already contains the rent, so nothing may be added on top of it
+  for (const r of retired) near(r.mixSpend, 25800, 1e-9, `spend at age ${r.age}`);
+});
+test("an owner still pays the mortgage on top, until it ends", () => {
+  // 25 years of mortgage against retiring at 60 from age 38, so the loan is deliberately
+  // still running for the first three retired years — otherwise this asserts nothing
+  const s = household({ ownRent: "own", rent: 0, mortPay: 7400, mortYears: 25, rspFixed: 18300 });
+  const rows = m.simulate(s, m.compute(s), 60).rows.filter(r => r.retired);
+  const during = rows.filter(r => r.y < s.mortYears);
+  const after = rows.filter(r => r.y >= s.mortYears);
+  assert.ok(during.length > 0, "the mortgage overlaps retirement");
+  assert.ok(after.length > 0, "and still finishes inside the plan");
+  for (const r of during) near(r.mixSpend, 18300 + 7400, 1e-9, `mid-mortgage at ${r.age}`);
+  for (const r of after) near(r.mixSpend, 18300, 1e-9, `post-mortgage at ${r.age}`);
+});
+test("rent is charged during the working years too", () => {
+  const at = rent => {
+    const s = household({ rent, rspFixed: 18300 });
+    return m.simulate(s, m.compute(s), 60).rows.find(r => r.age === 55).accessible;
+  };
+  assert.ok(at(12000) < at(6000), "an extra ₪6,000 of rent must leave less in the pot by 55");
+});
+test("rent makes retirement strictly harder", () => {
+  // target tracks the lifestyle, so dearer rent means both a bigger bill and a bigger target
+  const mk = rent => { const s = household({ rent }); s.rspFixed = m.compute(s).lifestyleBase; return s; };
+  const cheap = mk(6000), dear = mk(14000);
+  const a = m.earliestRetirement(cheap, m.compute(cheap));
+  const b = m.earliestRetirement(dear, m.compute(dear));
+  assert.ok(a !== null, "cheap rent is fundable at all");
+  assert.ok(b === null || b > a, `cheap rent retires at ${a}, dear at ${b} — must cost time`);
 });
 
 function IL_(mod) { return mod.IL; }

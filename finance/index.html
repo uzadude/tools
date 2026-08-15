@@ -639,10 +639,15 @@ function compute(s){
   const homeEquity = s.ownRent === "own" ? Math.max(0, s.homeVal - s.mortBal) : 0;
   const netWorth = liquid + pensionPot + homeEquity - s.debtBal;
 
-  // The lifestyle you actually live on, separate from the two costs that end by themselves:
+  // The lifestyle you actually live on, separate from the costs that end by themselves:
   // the mortgage (it gets paid off) and the kids (they grow up). Everything downstream is
   // built on this, so "same lifestyle" means exactly this number.
-  const lifestyleBase = lifestyleSpend - s.sp.Education;
+  //
+  // Rent is the exception, and the reason this isn't just "spending minus housing": rent
+  // never ends. If you don't own, it's a permanent part of the lifestyle and belongs inside
+  // the retirement target, not charged on top of it like a mortgage that runs out.
+  const rentForever = s.ownRent === "rent" ? housingFixed : 0;
+  const lifestyleBase = lifestyleSpend - s.sp.Education + rentForever;
 
   const retireSpend = s.rspFixed;
 
@@ -747,10 +752,12 @@ function simulate(s, c, retireAge){
 
       // ---- cash surplus ----
       const eduThisYear = (y < yearsOfEdu) ? s.sp.Education : 0;
-      const mortThisYear = (y < s.mortYears) ? c.housingFixed : (s.ownRent === "own" ? 0 : c.housingFixed);
+      // while working, housing is a real cost either way: the mortgage until it's paid off,
+      // or rent for as long as you're renting
+      const housingThisYear = s.ownRent === "own" ? (y < s.mortYears ? c.housingFixed : 0) : c.housingFixed;
       const debtThisYear = debtBal > 0 ? s.debtPay : 0;
       if (debtBal > 0) debtBal = Math.max(0, debtBal - s.debtPay*12*0.8);
-      const spend = (c.lifestyleSpend - s.sp.Education + eduThisYear) + mortThisYear + debtThisYear;
+      const spend = (c.lifestyleSpend - s.sp.Education + eduThisYear) + housingThisYear + debtThisYear;
       const surplus = (c.netIncome - spend) * 12;
       invest += surplus;
 
@@ -773,9 +780,10 @@ function simulate(s, c, retireAge){
         annuitised = true;
         if (s.downsize > 0){ invest += s.downsize; homeVal -= s.downsize; }
       }
-      const mortThisYear = (y < s.mortYears) ? c.housingFixed : (s.ownRent === "own" ? 0 : c.housingFixed);
       // retiring early doesn't make the kids grow up faster or the mortgage disappear —
-      // both still have to be paid out of the pot until they run their course
+      // both still have to be paid out of the pot until they run their course. Rent isn't
+      // here because it never runs its course: it's already inside retireSpend.
+      const mortThisYear = s.ownRent === "own" && y < s.mortYears ? c.housingFixed : 0;
       const eduThisYear = (y < yearsOfEdu) ? s.sp.Education : 0;
       const spend = c.retireSpend + mortThisYear + eduThisYear;
 
@@ -1197,13 +1205,21 @@ function render(){
   $("vRetP").textContent = pct(s.retP*100,2).replace(".00","");
   $("vSwr").textContent  = pct(s.swr*100,1);
   const vsLifestyle = c.lifestyleBase ? c.retireSpend / c.lifestyleBase * 100 : 0;
+  const owns = s.ownRent === "own";
+  const kids = s.sp.Education > 0 ? ` the kids (${nis(s.sp.Education)})` : "";
+  // only costs that actually end come out of the lifestyle figure, so the two tenures
+  // get their own sentence rather than one sentence bent to cover both
   $("rspExplain").innerHTML = `<div class="ttl">You've asked for ${nis(c.retireSpend)} a month —
     ${pct(vsLifestyle,0)} of today's lifestyle</div>
-    Today you spend ${nis(c.totalSpend)} all in. Take out
-    ${s.ownRent==="own" ? `the mortgage (${nis(c.housingFixed)})` : `rent (${nis(c.housingFixed)})`}
-    ${s.sp.Education>0 ? `and the kids (${nis(s.sp.Education)})` : ""} and the lifestyle itself is
-    <b>${nis(c.lifestyleBase)}</b> — that's what "match today's lifestyle" fills in.
-    ${s.ownRent==="own" && s.mortYears > 0 ? `<br>If you stop before the mortgage ends, its ${nis(c.housingFixed)} is added on top until it's paid off.` : ""}`;
+    Today you spend ${nis(c.totalSpend)} all in. ${owns
+      ? `Take out the mortgage (${nis(c.housingFixed)})${kids ? ` and${kids}` : ""}.
+         The lifestyle itself is <b>${nis(c.lifestyleBase)}</b>.`
+      : `${kids ? `Take out${kids}.` : "Nothing comes out."} Your rent stays in, because it
+         never ends. The lifestyle itself is <b>${nis(c.lifestyleBase)}</b>, rent included.`}
+    That's what "match today's lifestyle" fills in.
+    ${owns && s.mortYears > 0
+      ? `<br>If you stop before the mortgage ends, its ${nis(c.housingFixed)} is added on top until it's paid off.`
+      : owns ? "" : `<br>The ${nis(c.housingFixed)} rent sits inside this figure and keeps being paid for the whole plan — nothing is added on top.`}`;
   $("vPlanTo").textContent = s.planTo;
   $("vHg").textContent   = pct(s.hg*100,2).replace(".00","");
 
@@ -1290,15 +1306,14 @@ function render(){
 
   $("tPlanTo").textContent = s.planTo;
   const modeTxt = `your target of ${nis(c.retireSpend)}/month`;
+  // only the costs that end sit outside the lifestyle figure — rent isn't one of them
   const parts = [];
-  if (c.housingFixed > 0) parts.push(s.ownRent === "own"
-    ? `the mortgage (${nis(c.housingFixed)}), which ends once it's paid off`
-    : `rent (${nis(c.housingFixed)}), which doesn't end`);
+  if (owns && c.housingFixed > 0) parts.push(`the mortgage (${nis(c.housingFixed)}), which ends once it's paid off`);
   if (s.sp.Education > 0) parts.push(s.eduEnds
     ? `the kids (${nis(s.sp.Education)}), which winds down as they grow up`
     : `the kids (${nis(s.sp.Education)})`);
   $("tradeHint").innerHTML = `Today you spend <b>${nis(allInToday)}</b> a month all in.
-    <b>${nis(c.lifestyleBase)}</b> of that is the lifestyle itself${parts.length
+    <b>${nis(c.lifestyleBase)}</b> of that is the lifestyle itself${owns ? "" : ", rent included"}${parts.length
       ? `; the rest is ${parts.join(", and ")}` : ""}.
     You're currently modelling ${modeTxt}.`;
 
@@ -1443,7 +1458,9 @@ function render(){
     : "";
   const coversFrom = retRowsAll.find(r => r.mixSavings === 0 && r.mixSpend > 0);
   $("ddHint").innerHTML = `In retirement you'd need <b>${nis(c.retireSpend)}</b> a month
-    — that's ${pct(vsLifestyle,0)} of today's lifestyle spending, with the mortgage and kids' costs already taken out.
+    — that's ${pct(vsLifestyle,0)} of today's lifestyle spending, with
+    ${owns ? "the mortgage and the kids' costs taken out and charged separately until they end"
+           : "the kids' costs taken out, and your rent left in because it never ends"}.
     ${mixTxt}
     ${coversFrom ? `<br>From age ${coversFrom.age} the pension and Bituach Leumi cover the whole thing, and the savings stop being drawn on.` : ""}`;
 
