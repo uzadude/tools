@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rooftop Solar — Israel 2026</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --good-text:#006300;
+  --input-bg:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+    --good-text:#0ca30c;
+    --input-bg:#232322;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --good-text:#0ca30c;
+  --input-bg:#232322;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--text-primary);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.5; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:920px;margin:0 auto;padding:0 14px 80px}
+header.top{padding:26px 0 10px}
+h1{font-size:22px;font-weight:650;margin:0 0 4px;letter-spacing:-0.01em}
+.sub{color:var(--text-secondary);font-size:13.5px;margin:0}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:16px;margin:14px 0}
+h2{font-size:15px;font-weight:650;margin:0 0 3px;letter-spacing:-0.005em}
+h3{font-weight:650;margin:18px 0 8px;color:var(--text-secondary);
+   text-transform:uppercase;letter-spacing:0.05em;font-size:11.5px}
+.hint{color:var(--text-muted);font-size:12.5px;margin:0 0 12px;line-height:1.45}
+
+.hero{text-align:center;padding:20px 8px 6px}
+.hero .label{color:var(--text-secondary);font-size:13px;margin-bottom:2px}
+.hero .fig{font-size:54px;font-weight:660;letter-spacing:-0.03em;line-height:1.05}
+.hero .cap{color:var(--text-secondary);font-size:13.5px;margin-top:4px}
+.hero.bad .fig{color:var(--crit)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.tile{background:var(--plane);border:1px solid var(--border);border-radius:11px;padding:11px 12px}
+.tile .l{font-size:11.5px;color:var(--text-secondary);margin-bottom:3px;line-height:1.3}
+.tile .v{font-size:21px;font-weight:640;letter-spacing:-0.02em}
+.tile .d{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.tile .v.pos{color:var(--good-text)} .tile .v.neg{color:var(--crit)}
+.meter{height:9px;border-radius:5px;background:var(--grid);overflow:hidden;margin-top:7px}
+.meter > span{display:block;height:100%;border-radius:5px;background:var(--s1)}
+
+details.sec{border:1px solid var(--border);border-radius:12px;margin:9px 0;background:var(--surface-1);overflow:hidden}
+details.sec > summary{padding:13px 15px;cursor:pointer;font-weight:600;font-size:14px;list-style:none;
+  display:flex;justify-content:space-between;align-items:center;gap:10px}
+details.sec > summary::-webkit-details-marker{display:none}
+details.sec > summary::after{content:"+";color:var(--text-muted);font-size:18px;font-weight:400;line-height:1}
+details.sec[open] > summary::after{content:"–"}
+details.sec > summary .tag{font-weight:400;font-size:12px;color:var(--text-muted);margin-left:auto;padding-right:6px}
+.secbody{padding:2px 15px 16px;border-top:1px solid var(--border)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px}
+label.f{display:block;font-size:12.5px;color:var(--text-secondary);margin-bottom:12px}
+label.f > span{display:block;margin-bottom:4px;line-height:1.35}
+label.f .tiny{color:var(--text-muted);font-size:11.5px;font-weight:400}
+input[type=number],input[type=text],select{
+  width:100%;padding:9px 10px;font-size:15px;font-family:inherit;
+  background:var(--input-bg);color:var(--text-primary);
+  border:1px solid var(--axis);border-radius:8px;
+}
+input[type=number]:focus,input[type=text]:focus,select:focus{outline:2px solid var(--s1);outline-offset:1px;border-color:var(--s1)}
+input[type=range]{width:100%;accent-color:var(--s1)}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);margin-bottom:11px}
+.chk input{width:17px;height:17px;accent-color:var(--s1);flex:none}
+.rangerow{margin-bottom:14px}
+.rangerow .lab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-secondary);margin-bottom:2px}
+.rangerow .lab b{color:var(--text-primary);font-weight:600}
+
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+button{font-family:inherit;font-size:13px;font-weight:550;padding:9px 14px;border-radius:9px;
+  border:1px solid var(--axis);background:var(--surface-1);color:var(--text-primary);cursor:pointer}
+button:hover{background:var(--plane)}
+button.pri{background:var(--s1);border-color:var(--s1);color:#fff}
+button.pri:hover{filter:brightness(1.08)}
+button.mini{font-size:11.5px;padding:5px 9px;border-radius:7px;font-weight:500;color:var(--text-secondary)}
+
+.chartcard{margin-top:22px}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:2px}
+.chead h2{margin:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 4px}
+.legend .it{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)}
+.legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--grid)}
+.tbl th:first-child,.tbl td:first-child{text-align:left;font-variant-numeric:normal}
+.tbl th{color:var(--text-secondary);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em}
+.tblwrap{display:none;overflow-x:auto} .tblwrap.on{display:block}
+
+.note{border-left:3px solid var(--s1);background:var(--plane);border-radius:0 9px 9px 0;
+      padding:11px 13px;margin:12px 0;font-size:13px;color:var(--text-secondary);line-height:1.5}
+.note.ok{border-left-color:var(--good)} .note.warn{border-left-color:var(--warn)}
+.note.bad{border-left-color:var(--crit)}
+.note b{color:var(--text-primary);font-weight:600}
+.note .ttl{display:flex;align-items:center;gap:7px;font-weight:650;color:var(--text-primary);margin-bottom:4px;font-size:13px}
+.ico{width:15px;height:15px;flex:none}
+
+.themebtn{position:fixed;top:12px;right:12px;z-index:50;width:36px;height:36px;padding:0;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--surface-1);border:1px solid var(--border)}
+footer{color:var(--text-muted);font-size:11.5px;line-height:1.6;margin-top:30px;
+       border-top:1px solid var(--border);padding-top:16px}
+footer a{color:var(--text-secondary)}
+.tooltip{position:fixed;pointer-events:none;z-index:100;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12px;
+  box-shadow:0 6px 22px rgba(0,0,0,.16);opacity:0;transition:opacity .09s;max-width:230px}
+.tooltip.on{opacity:1}
+.tooltip .tt{font-weight:650;margin-bottom:4px;font-size:12px}
+.tooltip .r{display:flex;justify-content:space-between;gap:14px;color:var(--text-secondary);line-height:1.6}
+.tooltip .r b{color:var(--text-primary);font-weight:600;font-variant-numeric:tabular-nums}
+.tooltip .r .k{display:flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+<button class="themebtn" id="themebtn" title="Toggle light / dark" aria-label="Toggle light or dark mode">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+  </svg>
+</button>
+
+<div class="wrap">
+<header class="top">
+  <h1>Rooftop solar</h1>
+  <p class="sub">Does a home solar system pay for itself, and how fast — on Israeli 2026 tariffs. Everything runs in your browser; nothing is sent anywhere.</p>
+</header>
+
+<div class="card">
+  <div class="hero" id="hero">
+    <div class="label">Time to pay back the installation</div>
+    <div class="fig" id="heroFig">—</div>
+    <div class="cap" id="heroCap">Fill in your numbers below</div>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div id="verdict"></div>
+</div>
+
+<div class="card">
+  <h2>Your numbers</h2>
+  <p class="hint">Pre-filled with typical 2026 figures so you can see it work — replace them with your own quote. Everything recalculates as you type.</p>
+
+  <details class="sec" open>
+    <summary>The system <span class="tag" id="tagSys"></span></summary>
+    <div class="secbody">
+      <div class="grid2">
+        <label class="f"><span>System size <span class="tiny">(kWp — peak kilowatts)</span></span>
+          <input type="number" id="sizeKwp" value="10" min="1" max="100" step="0.5"></label>
+        <label class="f"><span>Installed cost <span class="tiny">(₪ per kWp, incl. VAT)</span></span>
+          <input type="number" id="costPerKwp" value="4500" step="100"></label>
+        <label class="f"><span>Usable roof area <span class="tiny">(m², optional)</span></span>
+          <input type="number" id="roofArea" value="60" step="5"></label>
+        <label class="f"><span>Roof needed per kWp <span class="tiny">(m² — panels plus spacing)</span></span>
+          <input type="number" id="m2PerKwp" value="5.5" step="0.25"></label>
+      </div>
+      <div class="btnrow" style="margin:0 0 12px">
+        <button class="mini" id="btnFitRoof">Fit the system to my roof</button>
+      </div>
+      <div class="rangerow">
+        <div class="lab"><span>Annual yield <span class="tiny">— kWh per kWp per year</span></span><b id="vYield">1,600</b></div>
+        <input type="range" id="yieldPerKwp" min="1300" max="1900" step="25" value="1600">
+        <div class="hint" style="margin:2px 0 0">Israel gets roughly 1,500–1,750 depending on orientation, tilt and shading. A north-facing or shaded roof sits at the bottom of that range.</div>
+      </div>
+    </div>
+  </details>
+
+  <details class="sec">
+    <summary>Your electricity use <span class="tag" id="tagUse"></span></summary>
+    <div class="secbody">
+      <div class="grid2">
+        <label class="f"><span>Electricity bill <span class="tiny">(₪ per month, average over the year)</span></span>
+          <input type="number" id="billMonthly" value="700" step="50"></label>
+        <label class="f"><span>Retail tariff <span class="tiny">(₪ per kWh, incl. VAT)</span></span>
+          <input type="number" id="retailTariff" value="0.635" step="0.005"></label>
+      </div>
+      <div class="rangerow">
+        <div class="lab"><span>Share of production you use on site <span class="tiny">— rather than exporting it</span></span><b id="vSelf">30%</b></div>
+        <input type="range" id="selfShare" min="0" max="100" step="5" value="30">
+        <div class="hint" style="margin:2px 0 0">This is the number that decides the answer. Solar is produced at midday; a house that's empty until evening uses very little of it directly. Working from home, a pool pump, an EV charged in daylight or a water heater on a timer all push it up.</div>
+      </div>
+    </div>
+  </details>
+
+  <details class="sec">
+    <summary>What you get paid <span class="tag" id="tagScheme"></span></summary>
+    <div class="secbody">
+      <label class="f"><span>Regulatory route</span>
+        <select id="scheme">
+          <option value="feed">תעריף הזנה — feed-in tariff (the route for new systems)</option>
+          <option value="net">מונה נטו — net metering (legacy, existing systems)</option>
+        </select></label>
+      <div class="grid2">
+        <label class="f"><span>Paid per exported kWh <span class="tiny">(₪)</span></span>
+          <input type="number" id="exportTariff" value="0.48" step="0.005"></label>
+        <label class="f"><span>Contract length <span class="tiny">(years the tariff is locked)</span></span>
+          <input type="number" id="tariffYears" value="25" min="1" max="30"></label>
+      </div>
+      <div class="chk"><input type="checkbox" id="urban"><label for="urban">Urban premium — town over 50,000 residents (+6 agorot per exported kWh)</label></div>
+      <div id="schemeNote" class="note"></div>
+    </div>
+  </details>
+
+  <details class="sec">
+    <summary>Running it <span class="tag" id="tagRun"></span></summary>
+    <div class="secbody">
+      <div class="grid2">
+        <label class="f"><span>Maintenance, cleaning &amp; insurance <span class="tiny">(₪ per year)</span></span>
+          <input type="number" id="opex" value="600" step="100"></label>
+        <label class="f"><span>Inverter replacement cost <span class="tiny">(₪, 0 if none)</span></span>
+          <input type="number" id="inverterCost" value="5000" step="500"></label>
+        <label class="f"><span>Inverter replaced in year</span>
+          <input type="number" id="inverterYear" value="13" min="1" max="30"></label>
+        <label class="f"><span>Panel output lost per year <span class="tiny">(%, degradation)</span></span>
+          <input type="number" id="degradation" value="0.5" step="0.1"></label>
+      </div>
+      <div class="rangerow">
+        <div class="lab"><span>Years to look at</span><b id="vHorizon">25</b></div>
+        <input type="range" id="horizon" min="10" max="30" step="1" value="25">
+      </div>
+      <div class="rangerow">
+        <div class="lab"><span>Real electricity price growth per year <span class="tiny">— above inflation</span></span><b id="vEsc">0%</b></div>
+        <input type="range" id="escalation" min="-2" max="4" step="0.25" value="0">
+      </div>
+      <div class="rangerow">
+        <div class="lab"><span>What your money would earn instead <span class="tiny">— real, for comparison</span></span><b id="vDisc">3%</b></div>
+        <input type="range" id="discount" min="0" max="8" step="0.25" value="3">
+      </div>
+    </div>
+  </details>
+
+  <div class="btnrow">
+    <button class="pri" id="btnSave">Save my numbers</button>
+    <button id="btnLoad">Load a saved file</button>
+    <button id="btnReset">Reset to example</button>
+    <button id="btnForget">Forget my numbers</button>
+    <input type="file" id="fileIn" accept=".json" style="display:none">
+  </div>
+  <p class="hint" style="margin:11px 0 0">Your numbers are remembered on this device so they're still here next time.
+    They stay in your browser — nothing is uploaded anywhere. <b>Forget my numbers</b> erases them;
+    <b>Save my numbers</b> downloads a copy you keep.</p>
+</div>
+
+<div class="card">
+  <h2>Getting your money back</h2>
+  <p class="hint" id="cfHint"></p>
+  <div class="chartcard">
+    <div class="chead"><h2 style="font-size:13.5px">Cumulative position, in today's shekels</h2>
+      <button class="mini" data-toggle="tblCF">Table</button></div>
+    <p class="hint" style="margin-top:4px">Starts at minus the installation cost and climbs as the system earns. The year it crosses zero is your payback.</p>
+    <div id="chartCF"></div>
+    <div class="tblwrap" id="tblCF"></div>
+  </div>
+  <div id="cfNotes"></div>
+</div>
+
+<div class="card">
+  <h2>Where the value comes from</h2>
+  <p class="hint" id="splitHint"></p>
+  <div class="chartcard">
+    <div class="chead"><h2 style="font-size:13.5px">First full year, by source</h2>
+      <button class="mini" data-toggle="tblSplit">Table</button></div>
+    <div id="chartSplit"></div>
+    <div class="tblwrap" id="tblSplit"></div>
+  </div>
+  <div class="chartcard">
+    <div class="chead"><h2 style="font-size:13.5px">Payback against how much you use on site</h2>
+      <button class="mini" data-toggle="tblSens">Table</button></div>
+    <p class="hint" style="margin-top:4px">Every point re-runs the whole model at that self-consumption share. Your current setting is marked.</p>
+    <div id="chartSens"></div>
+    <div class="tblwrap" id="tblSens"></div>
+  </div>
+  <div id="splitNotes"></div>
+</div>
+
+<div class="card">
+  <h2>Which levers actually matter</h2>
+  <p class="hint">Each row changes one thing and leaves everything else alone.</p>
+  <div class="tblwrap on" id="tblLev"></div>
+</div>
+
+<footer>
+  <p><b>What this is.</b> A planning model, not a quote and not advice. It answers "roughly, does this pay, and what moves the needle" — take it <em>to</em> an installer rather than instead of one, and check every tariff against your own contract before signing anything.</p>
+  <p><b>How it calculates.</b> Everything is in today's shekels, so inflation is netted out of the return assumptions rather than inflating every figure. Production is the system size times the annual yield, falling by the degradation rate each year. A kWh you use yourself is worth the full retail tariff you avoid paying; a kWh you export is worth the feed-in tariff, plus the urban premium where it applies. Self-consumption is capped by what your household actually uses. The installed cost is the year-zero outflow; maintenance runs every year and the inverter is replaced once. Payback is where the cumulative position crosses zero, interpolated within the year. The return figure is the internal rate of return on that cash-flow series.</p>
+  <p><b>The big caveats.</b> Tariffs are set by decision of the Electricity Authority and have moved repeatedly — the feed-in rate is locked for your contract term but the retail tariff it's compared against is not. Yield varies with roof orientation, tilt, shading and dust more than any single number suggests. Quotes differ in what they include: VAT, scaffolding, a new distribution board, structural work on an old roof. And self-consumption share, the single biggest lever here, is a guess unless you have interval data from your meter.</p>
+  <p>Sources: <a href="https://www.gov.il/he/departments/electricity_authority">Electricity Authority</a> · <a href="https://www.chashmalink.com/cost-kwh">current residential tariff</a> · <a href="https://ecot.co.il/madrich-chashmal-2026">2026 tariff guide</a> · <a href="https://bipv.co.il/%D7%9C%D7%9E%D7%99-%D7%A9%D7%97%D7%95%D7%A9%D7%91-%D7%A2%D7%9C-%D7%A1%D7%95%D7%9C%D7%90%D7%A8%D7%99-%D7%91%D7%99%D7%A9%D7%A8%D7%90%D7%9C/">solar tariff routes</a> · <a href="https://volta.solar/knowledge-center/%D7%A2%D7%9C%D7%95%D7%AA-%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA-%D7%A1%D7%95%D7%9C%D7%90%D7%A8%D7%99%D7%AA/">installation costs</a></p>
+</footer>
+</div>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+/* ============================================================
+   ISRAEL 2026 SOLAR CONSTANTS
+   Every one of these is an editable input in the page; these are
+   only the starting figures.
+   ============================================================ */
+const IL = {
+  retailTariff: 0.635,      // ₪/kWh incl. VAT, residential, Aug 2026
+  feedTariff:   0.48,       // ₪/kWh, תעריף הזנה, systems up to 15 kWp
+  netMeterTariff: 0.213,    // ₪/kWh, legacy מונה נטו export credit
+  urbanPremium: 0.06,       // ₪/kWh on exported units, towns over 50,000
+  residentialCapKwp: 15,    // above this a home system moves to another bracket
+  yieldPerKwp:  1600,       // kWh per kWp per year, typical
+  costPerKwp:   4500        // ₪ per kWp installed, incl. VAT; quotes run 3,500–5,500
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const num = id => { const v = parseFloat($(id).value); return isFinite(v) ? v : 0; };
+const nis = n => "₪" + Math.round(n).toLocaleString("en-US");
+const nisK = n => {
+  const a = Math.abs(n);
+  if (a >= 1e6) return "₪" + (n/1e6).toFixed(a>=1e7?1:2) + "M";
+  if (a >= 1e3) return "₪" + Math.round(n/1e3) + "K";
+  return "₪" + Math.round(n);
+};
+const kwh = n => Math.round(n).toLocaleString("en-US") + " kWh";
+const pct = (n,d=0) => n.toFixed(d) + "%";
+const yrs = n => n.toFixed(1).replace(/\.0$/, "") + (Math.abs(n - 1) < 0.05 ? " year" : " years");
+const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ============================================================
+   MODEL
+   All pure: same inputs, same numbers, no DOM. Everything the
+   page shows is derived from summarise().
+   ============================================================ */
+
+/* Panels lose a little output every year. Year 1 is full rated output. */
+function productionInYear(sizeKwp, yieldPerKwp, degradation, year){
+  if (sizeKwp <= 0 || yieldPerKwp <= 0) return 0;
+  return sizeKwp * yieldPerKwp * Math.pow(1 - degradation, Math.max(0, year - 1));
+}
+
+/* What one year of generation is worth.
+   A kWh you use yourself saves the full retail price you'd have paid for it.
+   A kWh you export earns the feed-in tariff, which is lower — so the split
+   between the two matters more than the total. You can't self-consume more
+   than the house actually uses, however sunny the roof. */
+function annualValue(produced, consumption, selfShare, retail, exportRate, premium){
+  const wanted = produced * Math.min(1, Math.max(0, selfShare));
+  const selfKwh = Math.max(0, Math.min(wanted, consumption, produced));
+  const exportKwh = Math.max(0, produced - selfKwh);
+  return {
+    produced, selfKwh, exportKwh,
+    selfValue: selfKwh * retail,
+    exportValue: exportKwh * exportRate,
+    premiumValue: exportKwh * premium,
+    get gross(){ return this.selfValue + this.exportValue + this.premiumValue; }
+  };
+}
+
+/* The whole project as a cash-flow series. Index 0 is the day you pay the
+   installer; index n is the end of year n. */
+function buildCashflows(s){
+  const rows = [];
+  const capex = s.sizeKwp * s.costPerKwp;
+  rows.push({ year: 0, produced: 0, selfKwh: 0, exportKwh: 0, selfValue: 0, exportValue: 0,
+              premiumValue: 0, opex: 0, capex, net: -capex });
+  for (let y = 1; y <= s.horizon; y++){
+    const produced = productionInYear(s.sizeKwp, s.yieldPerKwp, s.degradation, y);
+    // real terms: the retail price you avoid is the one that escalates, and the
+    // feed-in rate is fixed by contract for its term and worth nothing after it
+    const retail = s.retailTariff * Math.pow(1 + s.escalation, y - 1);
+    const inTerm = y <= s.tariffYears;
+    const v = annualValue(produced, s.consumption, s.selfShare, retail,
+                          inTerm ? s.exportTariff : 0, inTerm ? s.premium : 0);
+    const replacement = (s.inverterCost > 0 && y === s.inverterYear) ? s.inverterCost : 0;
+    rows.push({
+      year: y, produced, selfKwh: v.selfKwh, exportKwh: v.exportKwh,
+      selfValue: v.selfValue, exportValue: v.exportValue, premiumValue: v.premiumValue,
+      opex: s.opex + replacement, capex: 0,
+      net: v.gross - s.opex - replacement
+    });
+  }
+  let cum = 0;
+  for (const r of rows){ cum += r.net; r.cumulative = cum; }
+  return rows;
+}
+
+/* Where the cumulative line crosses zero, interpolated inside the year so a
+   system that pays back in June doesn't read as a whole extra year. */
+function paybackYears(rows){
+  for (let i = 1; i < rows.length; i++){
+    const prev = rows[i-1].cumulative, now = rows[i].cumulative;
+    if (prev < 0 && now >= 0){
+      const step = now - prev;
+      return step === 0 ? i : (i - 1) + (-prev / step);
+    }
+  }
+  return null;
+}
+
+function npv(rows, rate){
+  return rows.reduce((a, r) => a + r.net / Math.pow(1 + rate, r.year), 0);
+}
+
+/* Internal rate of return. Undefined when the project never turns a profit —
+   no rate makes a permanent loss break even, so this returns null rather than
+   a misleading number. */
+function irr(rows){
+  if (npv(rows, 0) <= 0) return null;
+  let lo = 0, hi = 1;
+  while (npv(rows, hi) > 0 && hi < 1e4) hi *= 2;
+  for (let i = 0; i < 200; i++){
+    const mid = (lo + hi) / 2;
+    if (npv(rows, mid) > 0) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+function summarise(s){
+  const rows = buildCashflows(s);
+  const y1 = rows[1] || rows[0];
+  const lifetime = rows[rows.length - 1].cumulative;
+  const totalProduced = rows.reduce((a, r) => a + r.produced, 0);
+  const capex = rows[0].capex;
+  return {
+    rows, y1, capex, lifetime, totalProduced,
+    payback: paybackYears(rows),
+    irr: irr(rows),
+    npv: npv(rows, s.discount),
+    // what a kWh is worth on average once the two prices are blended
+    blended: y1.produced > 0
+      ? (y1.selfValue + y1.exportValue + y1.premiumValue) / y1.produced : 0,
+    roofFits: s.m2PerKwp > 0 ? s.roofArea / s.m2PerKwp : 0
+  };
+}
+
+/* ============================================================
+   READ STATE
+   ============================================================ */
+function readState(){
+  const scheme = $("scheme").value;
+  const retailTariff = num("retailTariff");
+  const billMonthly = num("billMonthly");
+  return {
+    sizeKwp: num("sizeKwp"), costPerKwp: num("costPerKwp"),
+    roofArea: num("roofArea"), m2PerKwp: num("m2PerKwp"),
+    yieldPerKwp: num("yieldPerKwp"),
+    billMonthly, retailTariff,
+    consumption: retailTariff > 0 ? billMonthly * 12 / retailTariff : 0,
+    selfShare: num("selfShare") / 100,
+    scheme, exportTariff: num("exportTariff"), tariffYears: num("tariffYears"),
+    premium: $("urban").checked ? IL.urbanPremium : 0,
+    opex: num("opex"), inverterCost: num("inverterCost"), inverterYear: num("inverterYear"),
+    degradation: num("degradation") / 100,
+    horizon: Math.max(1, Math.round(num("horizon"))),
+    escalation: num("escalation") / 100,
+    discount: num("discount") / 100
+  };
+}
+
+/* ============================================================
+   SVG CHART HELPERS
+   ============================================================ */
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function niceTicks(max, count = 4){
+  if (max <= 0) return [0];
+  const raw = max / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  const ticks = [];
+  for (let v = 0; v <= max * 1.0001 + step*0.001; v += step) ticks.push(v);
+  if (ticks[ticks.length-1] < max) ticks.push(ticks[ticks.length-1] + step);
+  return ticks;
+}
+
+const tip = $("tip");
+function showTip(html, ev){
+  tip.innerHTML = html; tip.classList.add("on");
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY - r.height - 12;
+  if (x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y < 8) y = ev.clientY + 18;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip(){ tip.classList.remove("on"); }
+document.addEventListener("scroll", hideTip, true);
+
+/* ---------- Horizontal bars, single series, signed ---------- */
+function hBars(mount, data){
+  const el = $(mount); el.innerHTML = "";
+  const rowH = 32, padL = 150, padR = 84, padT = 6, padB = 22;
+  const W = Math.max(320, el.clientWidth || 600);
+  const H = padT + data.length * rowH + padB;
+  const plotW = W - padL - padR;
+  const max = Math.max(...data.map(d => Math.abs(d.v)), 1);
+  const ticks = niceTicks(max, 3);
+  const tmax = ticks[ticks.length-1];
+  const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img"});
+
+  for (const t of ticks){
+    const x = padL + (t / tmax) * plotW;
+    svg.appendChild(svgEl("line", {x1:x, y1:padT, x2:x, y2:padT + data.length*rowH,
+      stroke:cssv("--grid"), "stroke-width":1}));
+    const lb = svgEl("text", {x, y:H - 6, "text-anchor":"middle",
+      fill:cssv("--text-muted"), "font-size":10.5, "font-family":"inherit"});
+    lb.textContent = nisK(t); svg.appendChild(lb);
+  }
+
+  data.forEach((d,i) => {
+    const y = padT + i*rowH;
+    const bh = Math.min(20, rowH - 10);
+    const w = Math.max(2, (Math.abs(d.v) / tmax) * plotW);
+    const lab = svgEl("text", {x: padL - 10, y: y + rowH/2 + 4, "text-anchor":"end",
+      fill:cssv("--text-secondary"), "font-size":12, "font-family":"inherit"});
+    lab.textContent = d.k; svg.appendChild(lab);
+
+    svg.appendChild(svgEl("rect", {x:padL, y: y + (rowH-bh)/2, width:w, height:bh,
+      rx:4, fill: d.color}));
+    svg.appendChild(svgEl("rect", {x:padL, y:y+(rowH-bh)/2, width:Math.min(4,w), height:bh, fill:d.color}));
+
+    const val = svgEl("text", {x: padL + w + 8, y: y + rowH/2 + 4,
+      fill:cssv("--text-primary"), "font-size":11.5, "font-family":"inherit", "font-weight":600});
+    val.textContent = (d.v < 0 ? "−" : "") + nis(Math.abs(d.v)); svg.appendChild(val);
+
+    const hit = svgEl("rect", {x:0, y, width:W, height:rowH, fill:"transparent"});
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="tt">${esc(d.k)}</div><div class="r"><span class="k">Per year</span><b>${(d.v<0?"−":"")+nis(Math.abs(d.v))}</b></div>` +
+      (d.note ? `<div class="r"><span class="k">${esc(d.note)}</span></div>` : ""), ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+  el.appendChild(svg);
+}
+
+/* ---------- Cumulative line, crosses zero ---------- */
+function cumulativeChart(mount, rows){
+  const el = $(mount); el.innerHTML = "";
+  const W = Math.max(320, el.clientWidth || 600);
+  const padL = 52, padR = 16, padT = 18, padB = 42;
+  const H = 250, plotW = W - padL - padR, plotH = H - padT - padB;
+  const vals = rows.map(r => r.cumulative);
+  const hi = Math.max(...vals, 0), lo = Math.min(...vals, 0);
+  const upper = niceTicks(hi, 3); const top = upper[upper.length-1] || 1;
+  const lower = niceTicks(-lo, 2); const bottom = -(lower[lower.length-1] || 0);
+  const span = (top - bottom) || 1;
+  const sy = v => padT + plotH - ((v - bottom) / span) * plotH;
+  const sx = i => padL + (rows.length < 2 ? plotW/2 : (i/(rows.length-1))*plotW);
+  const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img"});
+
+  const allTicks = [...new Set([...upper, ...lower.map(v => -v)])].sort((a,b)=>a-b);
+  for (const t of allTicks){
+    const y = sy(t);
+    svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W-padR, y2:y,
+      stroke: t === 0 ? cssv("--axis") : cssv("--grid"), "stroke-width":1}));
+    const lb = svgEl("text", {x:padL-7, y:y+3.5, "text-anchor":"end", fill:cssv("--text-muted"),
+      "font-size":10.5, "font-family":"inherit"});
+    lb.textContent = nisK(t); svg.appendChild(lb);
+  }
+
+  const color = rows[rows.length-1].cumulative >= 0 ? cssv("--s3") : cssv("--s2");
+  let d = "", area = `M ${sx(0)} ${sy(0)} `;
+  rows.forEach((r,i) => { d += (i?"L":"M") + ` ${sx(i)} ${sy(r.cumulative)} `; area += `L ${sx(i)} ${sy(r.cumulative)} `; });
+  area += `L ${sx(rows.length-1)} ${sy(0)} Z`;
+  svg.appendChild(svgEl("path", {d:area, fill:color, "fill-opacity":0.10}));
+  svg.appendChild(svgEl("path", {d, fill:"none", stroke:color, "stroke-width":2,
+    "stroke-linejoin":"round", "stroke-linecap":"round"}));
+
+  const pb = paybackYears(rows);
+  if (pb !== null){
+    const x = sx(pb);
+    svg.appendChild(svgEl("line", {x1:x, y1:padT, x2:x, y2:padT+plotH,
+      stroke:cssv("--good"), "stroke-width":1, "stroke-dasharray":"3 3"}));
+    const m = svgEl("text", {x:x+5, y:padT+11, fill:cssv("--good-text"),
+      "font-size":10.5, "font-family":"inherit", "font-weight":650,
+      stroke:cssv("--surface-1"), "stroke-width":3, "paint-order":"stroke"});
+    m.textContent = "paid back — " + yrs(pb); svg.appendChild(m);
+  }
+
+  const every = Math.max(1, Math.round(rows.length/8));
+  rows.forEach((r,i) => {
+    if (i % every && i !== rows.length-1) return;
+    const lb = svgEl("text", {x:sx(i), y:H-22, "text-anchor":"middle",
+      fill:cssv("--text-muted"), "font-size":10.5, "font-family":"inherit"});
+    lb.textContent = r.year; svg.appendChild(lb);
+  });
+  const xl = svgEl("text", {x:padL+plotW/2, y:H-4, "text-anchor":"middle",
+    fill:cssv("--text-muted"), "font-size":10.5, "font-family":"inherit"});
+  xl.textContent = "Years after installation"; svg.appendChild(xl);
+
+  const cross = svgEl("line", {x1:0,y1:padT,x2:0,y2:padT+plotH, stroke:cssv("--axis"), "stroke-width":1, opacity:0});
+  const dot = svgEl("circle", {r:5, fill:color, stroke:cssv("--surface-1"), "stroke-width":2, opacity:0});
+  svg.appendChild(cross); svg.appendChild(dot);
+  const hit = svgEl("rect", {x:padL, y:padT, width:plotW, height:plotH, fill:"transparent"});
+  hit.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const rel = (ev.clientX - box.left) / box.width * W;
+    let i = Math.round((rel - padL) / plotW * (rows.length-1));
+    i = Math.max(0, Math.min(rows.length-1, i));
+    const r = rows[i];
+    cross.setAttribute("x1", sx(i)); cross.setAttribute("x2", sx(i)); cross.setAttribute("opacity", 1);
+    dot.setAttribute("cx", sx(i)); dot.setAttribute("cy", sy(r.cumulative)); dot.setAttribute("opacity", 1);
+    showTip(`<div class="tt">${r.year === 0 ? "Installation" : "Year " + r.year}</div>
+      <div class="r"><span class="k">Cumulative</span><b>${nisK(r.cumulative)}</b></div>
+      ${r.year > 0 ? `<div class="r"><span class="k">That year</span><b>${nis(r.net)}</b></div>
+      <div class="r"><span class="k">Generated</span><b>${kwh(r.produced)}</b></div>` : ""}`, ev);
+  });
+  hit.addEventListener("mouseleave", () => { hideTip(); cross.setAttribute("opacity",0); dot.setAttribute("opacity",0); });
+  svg.appendChild(hit);
+  el.appendChild(svg);
+}
+
+/* ---------- Payback against self-consumption ---------- */
+function sensitivityChart(mount, pts, markIdx){
+  const el = $(mount); el.innerHTML = "";
+  const W = Math.max(320, el.clientWidth || 600);
+  const padL = 44, padR = 18, padT = 20, padB = 44;
+  const H = 240, plotW = W - padL - padR, plotH = H - padT - padB;
+  const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img"});
+  const live = pts.filter(p => p.payback !== null);
+  if (!live.length){ el.innerHTML = '<p class="hint">On these numbers it never pays back, at any level of self-use.</p>'; return; }
+
+  const maxPb = Math.max(...live.map(p => p.payback));
+  const ticks = niceTicks(maxPb, 4); const top = ticks[ticks.length-1];
+  const sy = v => padT + plotH - (v/top)*plotH;
+  const sx = i => padL + (pts.length<2 ? plotW/2 : (i/(pts.length-1))*plotW);
+
+  for (const t of ticks){
+    const y = sy(t);
+    svg.appendChild(svgEl("line", {x1:padL, y1:y, x2:W-padR, y2:y, stroke:cssv("--grid"), "stroke-width":1}));
+    const lb = svgEl("text", {x:padL-7, y:y+3.5, "text-anchor":"end", fill:cssv("--text-muted"),
+      "font-size":10.5, "font-family":"inherit"});
+    lb.textContent = t + "y"; svg.appendChild(lb);
+  }
+
+  const color = cssv("--s1");
+  let d = "";
+  pts.forEach((p,i) => { if (p.payback === null) return; d += (d?"L":"M") + ` ${sx(i)} ${sy(p.payback)} `; });
+  svg.appendChild(svgEl("path", {d, fill:"none", stroke:color, "stroke-width":2,
+    "stroke-linejoin":"round", "stroke-linecap":"round"}));
+
+  pts.forEach((p,i) => {
+    if (p.payback === null) return;
+    const isMark = i === markIdx;
+    svg.appendChild(svgEl("circle", {cx:sx(i), cy:sy(p.payback), r:isMark?7:4,
+      fill:isMark?cssv("--s2"):color, stroke:cssv("--surface-1"), "stroke-width":2}));
+  });
+  const mp = pts[markIdx];
+  if (mp && mp.payback !== null){
+    const t = svgEl("text", {y:sy(mp.payback)-15, "text-anchor":"middle",
+      fill:cssv("--text-primary"), "font-size":11.5, "font-weight":650, "font-family":"inherit",
+      stroke:cssv("--surface-1"), "stroke-width":3.5, "paint-order":"stroke"});
+    t.textContent = "you: " + yrs(mp.payback);
+    t.setAttribute("x", Math.min(W - padR - 34, Math.max(padL + 34, sx(markIdx))));
+    svg.appendChild(t);
+  }
+
+  const every = Math.max(1, Math.ceil(pts.length/6));
+  pts.forEach((p,i) => {
+    if (i % every && i !== pts.length-1) return;
+    const lb = svgEl("text", {x:sx(i), y:H-24, "text-anchor":"middle", fill:cssv("--text-muted"),
+      "font-size":10.5, "font-family":"inherit"});
+    lb.textContent = Math.round(p.share*100) + "%"; svg.appendChild(lb);
+  });
+  const xl = svgEl("text", {x:padL+plotW/2, y:H-6, "text-anchor":"middle", fill:cssv("--text-muted"),
+    "font-size":10.5, "font-family":"inherit"});
+  xl.textContent = "Share of production used on site"; svg.appendChild(xl);
+
+  const band = plotW / Math.max(1, pts.length-1);
+  pts.forEach((p,i) => {
+    const hit = svgEl("rect", {x:sx(i)-band/2, y:padT, width:band, height:plotH, fill:"transparent"});
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="tt">${Math.round(p.share*100)}% used on site</div>` +
+      (p.payback === null ? `<div class="r"><span class="k">Never pays back</span><b>—</b></div>`
+        : `<div class="r"><span class="k">Pays back in</span><b>${yrs(p.payback)}</b></div>
+           <div class="r"><span class="k">Over ${p.horizon} years</span><b>${nisK(p.lifetime)}</b></div>`), ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+  el.appendChild(svg);
+}
+
+function renderTable(mount, cols, rows){
+  $(mount).innerHTML = `<table class="tbl"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const icoOk = `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+const icoWarn = `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9.2"/></svg>`;
+
+function render(){
+  const s = readState();
+  const r = summarise(s);
+  const S = k => cssv("--"+k);
+
+  $("vYield").textContent = Math.round(s.yieldPerKwp).toLocaleString("en-US");
+  $("vSelf").textContent  = pct(s.selfShare*100,0);
+  $("vHorizon").textContent = s.horizon;
+  $("vEsc").textContent   = pct(s.escalation*100,2).replace(".00","");
+  $("vDisc").textContent  = pct(s.discount*100,2).replace(".00","");
+
+  $("tagSys").textContent    = s.sizeKwp + " kWp · " + nisK(r.capex);
+  $("tagUse").textContent    = kwh(s.consumption) + "/yr";
+  $("tagScheme").textContent = s.scheme === "feed" ? "feed-in" : "net metering";
+  $("tagRun").textContent    = s.horizon + " yrs";
+
+  // ---- hero ----
+  const hero = $("hero");
+  hero.classList.toggle("bad", r.payback === null);
+  if (r.payback === null){
+    $("heroFig").textContent = "Never";
+    $("heroCap").innerHTML = `Over ${s.horizon} years this system doesn't earn back its
+      ${nis(r.capex)}. It ends ${nis(Math.abs(r.lifetime))} down.`;
+  } else {
+    $("heroFig").textContent = r.payback.toFixed(1).replace(/\.0$/, "") + " yrs";
+    $("heroCap").innerHTML = `The ${nis(r.capex)} comes back by year
+      <b>${Math.ceil(r.payback)}</b>, and everything after that is profit —
+      ${nis(r.lifetime)} by year ${s.horizon}.`;
+  }
+
+  // ---- tiles ----
+  const selfPct = r.y1.produced > 0 ? r.y1.selfKwh / r.y1.produced * 100 : 0;
+  const coverPct = s.consumption > 0 ? Math.min(999, r.y1.produced / s.consumption * 100) : 0;
+  $("tiles").innerHTML = `
+    <div class="tile"><div class="l">Installation</div><div class="v">${nisK(r.capex)}</div>
+      <div class="d">${s.sizeKwp} kWp at ${nis(s.costPerKwp)}/kWp</div></div>
+    <div class="tile"><div class="l">Generated, year 1</div><div class="v">${Math.round(r.y1.produced/1000)}k</div>
+      <div class="d">kWh — ${pct(coverPct,0)} of what you use</div></div>
+    <div class="tile"><div class="l">Earns, year 1</div><div class="v pos">${nis(r.y1.net)}</div>
+      <div class="d">after ${nis(s.opex)} of running costs</div></div>
+    <div class="tile"><div class="l">Used on site</div><div class="v">${pct(selfPct,0)}</div>
+      <div class="meter"><span style="width:${Math.min(100,selfPct)}%"></span></div>
+      <div class="d">worth ${nis(s.retailTariff*1000)}/MWh vs ${nis((s.exportTariff+s.premium)*1000)} exported</div></div>
+    <div class="tile"><div class="l">Net over ${s.horizon} years</div>
+      <div class="v ${r.lifetime>=0?"pos":"neg"}">${nisK(r.lifetime)}</div>
+      <div class="d">in today's shekels</div></div>
+    <div class="tile"><div class="l">Return on the money</div>
+      <div class="v">${r.irr === null ? "—" : pct(r.irr*100,1)}</div>
+      <div class="d">${r.irr === null ? "never turns a profit" : `real, vs ${pct(s.discount*100,0)} elsewhere`}</div></div>
+  `;
+
+  // ---- verdict ----
+  let v = "";
+  if (s.sizeKwp > IL.residentialCapKwp){
+    v += `<div class="note warn"><div class="ttl" style="color:var(--warn)">${icoWarn}Above the ${IL.residentialCapKwp} kWp home bracket</div>
+      Residential feed-in rates apply up to ${IL.residentialCapKwp} kWp. At ${s.sizeKwp} kWp you'd move into a
+      different bracket with a lower rate and a heavier connection process — check what your installer is actually quoting for.</div>`;
+  }
+  if (r.roofFits > 0 && s.sizeKwp > r.roofFits + 0.05){
+    v += `<div class="note bad"><div class="ttl" style="color:var(--crit)">${icoWarn}It doesn't fit on the roof</div>
+      ${s.roofArea} m² at ${s.m2PerKwp} m² per kWp holds about <b>${r.roofFits.toFixed(1)} kWp</b>, not ${s.sizeKwp}.
+      Either the system shrinks or the roof area is understated.</div>`;
+  }
+  if (r.payback !== null && r.payback <= 8 && r.irr !== null){
+    v += `<div class="note ok"><div class="ttl" style="color:var(--good-text)">${icoOk}This pays</div>
+      ${yrs(r.payback)} to break even and ${pct(r.irr*100,1)} real return over ${s.horizon} years.
+      For comparison you've assumed ${pct(s.discount*100,0)} on the money elsewhere${r.irr > s.discount ? " — the roof wins" : ""}.</div>`;
+  }
+  if (coverPct > 130){
+    v += `<div class="note warn"><div class="ttl" style="color:var(--warn)">${icoWarn}The system is much bigger than your use</div>
+      It generates ${pct(coverPct,0)} of what your household consumes, so most of it has to be exported at
+      ${nis((s.exportTariff+s.premium)*100)} per 100 kWh instead of saving you ${nis(s.retailTariff*100)}.
+      A smaller system usually pays back faster.</div>`;
+  }
+  $("verdict").innerHTML = v;
+
+  $("schemeNote").innerHTML = s.scheme === "feed"
+    ? `<div class="ttl">תעריף הזנה — feed-in</div>You're paid <b>${nis(s.exportTariff*100)} per 100 kWh</b> exported
+       for ${s.tariffYears} years${s.premium ? `, plus the ${nis(s.premium*100)} urban premium` : ""}.
+       Anything you use as it's generated is worth the full retail ${nis(s.retailTariff*100)} instead, which is why
+       self-consumption is the lever that matters.`
+    : `<div class="ttl">מונה נטו — net metering</div>The legacy arrangement, largely closed to new systems. Exported units
+       are credited at <b>${nis(s.exportTariff*100)} per 100 kWh</b> — well below the feed-in route — so under this scheme
+       almost all the value has to come from using the power yourself.`;
+
+  // ================= CASH FLOW =================
+  $("cfHint").innerHTML = `A ${s.sizeKwp} kWp system costs <b>${nis(r.capex)}</b> and generates about
+    <b>${kwh(r.y1.produced)}</b> in its first year, worth <b>${nis(r.y1.net)}</b> after running costs.
+    Averaged across everything it makes, each kWh is worth ${nis(r.blended*100)} per 100.`;
+  cumulativeChart("chartCF", r.rows);
+  renderTable("tblCF", ["Year","Generated","Used on site","Exported","Value","Costs","That year","Cumulative"],
+    r.rows.map(x => [x.year || "install", x.year ? kwh(x.produced) : "—",
+      x.year ? kwh(x.selfKwh) : "—", x.year ? kwh(x.exportKwh) : "—",
+      x.year ? nis(x.selfValue + x.exportValue + x.premiumValue) : "—",
+      x.year ? nis(x.opex) : nis(x.capex),
+      nis(x.net), nis(x.cumulative)]));
+
+  let cn = "";
+  if (r.payback !== null && s.inverterCost > 0 && s.inverterYear <= s.horizon){
+    cn += `<div class="note"><div class="ttl">The dip in year ${s.inverterYear}</div>
+      That's the inverter being replaced at ${nis(s.inverterCost)} — the one part that reliably doesn't last
+      the life of the panels. Push the year out or drop the cost to zero to see what it's costing you.</div>`;
+  }
+  if (s.tariffYears < s.horizon){
+    cn += `<div class="note warn"><div class="ttl" style="color:var(--warn)">${icoWarn}After year ${s.tariffYears} the export income stops</div>
+      Your contract is ${s.tariffYears} years but you're looking at ${s.horizon}. Beyond the term the model pays
+      nothing for exported units, so only self-consumption keeps earning. That's deliberately pessimistic —
+      there'll be some arrangement, nobody knows what.</div>`;
+  }
+  $("cfNotes").innerHTML = cn;
+
+  // ================= VALUE SPLIT =================
+  const split = [
+    {k:"Electricity you don't buy", v:r.y1.selfValue, color:S("s1"),
+     note:`${kwh(r.y1.selfKwh)} at ${nis(s.retailTariff*100)}/100kWh`},
+    {k:"Exported to the grid", v:r.y1.exportValue, color:S("s3"),
+     note:`${kwh(r.y1.exportKwh)} at ${nis(s.exportTariff*100)}/100kWh`}
+  ];
+  if (r.y1.premiumValue > 0) split.push({k:"Urban premium", v:r.y1.premiumValue, color:S("s4"),
+    note:`${nis(s.premium*100)} per 100 kWh exported`});
+  split.push({k:"Maintenance & insurance", v:-s.opex, color:S("s2"), note:"every year"});
+
+  const gross = r.y1.selfValue + r.y1.exportValue + r.y1.premiumValue;
+  $("splitHint").innerHTML = `In its first year the system is worth <b>${nis(gross)}</b> before costs.
+    ${gross > 0 ? `<b>${pct(r.y1.selfValue/gross*100,0)}</b> of that is electricity you simply don't have to buy —
+    which is why a kWh used at home is worth ${(s.retailTariff/Math.max(0.0001,s.exportTariff+s.premium)).toFixed(1)}× one sold to the grid.` : ""}`;
+  hBars("chartSplit", split);
+  renderTable("tblSplit", ["Source","Year 1","Per kWh","Share of gross"],
+    split.map(d => [d.k, (d.v<0?"−":"")+nis(Math.abs(d.v)),
+      d.k === "Electricity you don't buy" ? nis(s.retailTariff*100)+"/100"
+        : d.k === "Exported to the grid" ? nis(s.exportTariff*100)+"/100"
+        : d.k === "Urban premium" ? nis(s.premium*100)+"/100" : "—",
+      gross > 0 && d.v > 0 ? pct(d.v/gross*100,1) : "—"]));
+
+  // sensitivity: re-run the model across self-consumption
+  const pts = [];
+  for (let share = 0; share <= 1.0001; share += 0.1){
+    const o = {...s, selfShare: share};
+    const os = summarise(o);
+    pts.push({share, payback: os.payback, lifetime: os.lifetime, horizon: s.horizon});
+  }
+  let markIdx = Math.round(s.selfShare * 10);
+  markIdx = Math.max(0, Math.min(pts.length-1, markIdx));
+  sensitivityChart("chartSens", pts, markIdx);
+  renderTable("tblSens", ["Used on site","Pays back in",`Net over ${s.horizon} years`],
+    pts.map(p => [pct(p.share*100,0), p.payback === null ? "never" : yrs(p.payback), nisK(p.lifetime)]));
+
+  let sn = "";
+  const at0 = pts[0], at100 = pts[pts.length-1];
+  if (at0.payback !== null && at100.payback !== null){
+    sn += `<div class="note"><div class="ttl">What self-consumption is worth</div>
+      Exporting everything pays back in <b>${yrs(at0.payback)}</b>; using it all yourself,
+      <b>${yrs(at100.payback)}</b>. That spread is the whole argument for shifting loads into daylight —
+      a timer on the water heater or the washing machine costs nothing and moves you along this curve.</div>`;
+  }
+  $("splitNotes").innerHTML = sn;
+
+  // ================= LEVERS =================
+  const levers = [
+    ["Negotiate 10% off the price",   o => { o.costPerKwp *= 0.9; }],
+    ["A system half the size",        o => { o.sizeKwp = Math.max(1, o.sizeKwp/2); }],
+    ["A system 50% bigger",           o => { o.sizeKwp *= 1.5; }],
+    ["Use 20 points more on site",    o => { o.selfShare = Math.min(1, o.selfShare + 0.2); }],
+    ["A shaded or badly angled roof", o => { o.yieldPerKwp *= 0.85; }],
+    ["Electricity rises 2%/yr in real terms", o => { o.escalation += 0.02; }],
+    ["No inverter replacement",       o => { o.inverterCost = 0; }],
+    ["Urban premium applies",         o => { o.premium = IL.urbanPremium; }]
+  ];
+  const levRows = levers.map(([name, fn]) => {
+    const o = {...s, sp: undefined};
+    fn(o);
+    const os = summarise(o);
+    let delta = "—", cls = "var(--text-muted)";
+    if (r.payback !== null && os.payback !== null){
+      const d = os.payback - r.payback;
+      delta = Math.abs(d) < 0.05 ? "no change"
+        : d < 0 ? `${yrs(-d)} sooner` : `${yrs(d)} later`;
+      cls = d < -0.05 ? "var(--good-text)" : d > 0.05 ? "var(--crit)" : "var(--text-muted)";
+    } else if (os.payback !== null){ delta = "makes it pay"; cls = "var(--good-text)"; }
+    else { delta = "never pays"; cls = "var(--crit)"; }
+    const diff = os.lifetime - r.lifetime;
+    const dCls = diff > 0 ? "var(--good-text)" : diff < 0 ? "var(--crit)" : "var(--text-muted)";
+    return [name, os.payback === null ? "never" : yrs(os.payback),
+      `<span style="color:${cls};font-weight:600">${delta}</span>`,
+      `${nisK(os.lifetime)} <span style="color:${dCls};font-size:11px">(${diff>=0?"+":"−"}${nisK(Math.abs(diff))})</span>`];
+  });
+  renderTable("tblLev", ["Change one thing","Pays back in","Effect", `Net over ${s.horizon} years`], levRows);
+}
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+let raf;
+function scheduleRender(){
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { render(); store.save(); });
+}
+
+document.querySelectorAll("input, select").forEach(el => {
+  el.addEventListener("input", scheduleRender);
+  el.addEventListener("change", scheduleRender);
+});
+// switching route swaps in that route's tariff, since the two are far apart and
+// leaving the old number behind would quietly model something that doesn't exist
+$("scheme").addEventListener("change", () => {
+  $("exportTariff").value = $("scheme").value === "feed" ? IL.feedTariff : IL.netMeterTariff;
+  scheduleRender();
+});
+$("btnFitRoof").addEventListener("click", () => {
+  const s = readState();
+  if (s.m2PerKwp > 0 && s.roofArea > 0)
+    $("sizeKwp").value = Math.max(1, Math.floor(s.roofArea / s.m2PerKwp * 2) / 2);   // to the nearest half kWp
+  scheduleRender();
+});
+document.querySelectorAll("[data-toggle]").forEach(b => {
+  b.addEventListener("click", () => {
+    const t = $(b.dataset.toggle);
+    t.classList.toggle("on");
+    b.textContent = t.classList.contains("on") ? "Hide table" : "Table";
+  });
+});
+window.addEventListener("resize", scheduleRender);
+
+$("themebtn").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const isDark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+  scheduleRender();
+});
+
+const FIELDS = ["sizeKwp","costPerKwp","roofArea","m2PerKwp","yieldPerKwp",
+  "billMonthly","retailTariff","selfShare","scheme","exportTariff","tariffYears","urban",
+  "opex","inverterCost","inverterYear","degradation","horizon","escalation","discount"];
+
+const readFields = () => Object.fromEntries(FIELDS.map(f => {
+  const el = $(f);
+  return [f, el.type === "checkbox" ? el.checked : el.value];
+}));
+function writeFields(o){
+  FIELDS.forEach(k => {
+    if (!(k in o)) return;
+    const el = $(k);
+    if (el.type === "checkbox") el.checked = o[k]; else el.value = o[k];
+  });
+}
+
+/* Kept on this device so the numbers survive a reload — localStorage, never a
+   network. "Forget my numbers" wipes it; the JSON export is the copy you own. */
+const KEY = "solar-calc";
+const store = {
+  // localStorage throws in private mode and on some file:// origins, and an
+  // offline tool shouldn't break because it can't remember
+  save(){ try { localStorage.setItem(KEY, JSON.stringify(readFields())); } catch(e){} },
+  load(){ try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch(e){ return null; } },
+  clear(){ try { localStorage.removeItem(KEY); } catch(e){} }
+};
+
+$("btnSave").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(readFields(), null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "solar-calc.json";
+  a.click(); URL.revokeObjectURL(a.href);
+});
+$("btnLoad").addEventListener("click", () => $("fileIn").click());
+$("fileIn").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try { writeFields(JSON.parse(rd.result)); scheduleRender(); }
+    catch(err){ alert("Couldn't read that file."); }
+  };
+  rd.readAsText(f);
+});
+
+// snapshot the example figures before anything restores over them, or "reset to
+// example" would reset to whatever was last remembered
+const DEFAULTS = readFields();
+
+$("btnReset").addEventListener("click", () => { writeFields(DEFAULTS); scheduleRender(); });
+$("btnForget").addEventListener("click", () => {
+  // this click blurs whatever field had focus, and that change event has already
+  // queued a save — drop it or it lands after the clear and puts them back
+  cancelAnimationFrame(raf);
+  store.clear();
+  writeFields(DEFAULTS);
+  render();   // deliberately not scheduleRender, which would save them again
+});
+
+const remembered = store.load();
+if (remembered) writeFields(remembered);
+render();
+</script>
+</body>
+</html>

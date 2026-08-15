@@ -9,6 +9,7 @@ forever. Nothing you type into any of them leaves the page.
 | Tool | What it answers |
 |------|-----------------|
 | [finance](finance/) | When can we retire, how much can we spend, and where does the money go — modelled on Israeli tax, pension and Bituach Leumi rules. |
+| [solar](solar/) | Does a rooftop solar system pay for itself, and how fast — on Israeli 2026 tariffs, where a kWh you use is worth more than one you sell. |
 
 ## Conventions
 
