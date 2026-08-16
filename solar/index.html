@@ -837,11 +837,21 @@ function render(){
       worse off</b> for the first ${r.capitalYears} years${r.monthlyAfter > 0
         ? `, then ${nis(r.monthlyAfter)} a month better off once that's behind you` : ""}.`;
   } else {
+    // three endings, not two: it clears the cost and keeps earning; it clears the cost
+    // exactly as the horizon runs out, leaving nothing on the far side to report; or it
+    // never clears it at all. Collapsing the middle case into either of the others
+    // produced "after which it's ₪0 a month clear", which says nothing.
     $("heroCap").innerHTML = `a month better off in year one — ${nis(r.monthlyY1)} earned,
-      less ${costWord}. ${r.freeFrom === null
-        ? `It never fully earns the ${nis(r.capex)} back inside ${s.horizon} years.`
-        : `${r.financed ? `The loan ends in year ${s.loanYears}` : `The ${nis(r.capex)} is earned back by year ${Math.ceil(r.freeFrom)}`},
-           after which it's <b>${nis(r.monthlyAfter)} a month</b> clear.`}`;
+      less ${costWord}. ${r.monthlyAfter > 0
+        ? `${r.financed ? `The loan ends in year ${Math.round(r.capitalYears)}`
+                        : `The ${nis(r.capex)} is earned back by year ${Math.ceil(r.freeFrom)}`},
+           after which it's <b>${nis(r.monthlyAfter)} a month</b> clear.`
+        : r.freeFrom === null
+          ? `It never fully earns the ${nis(r.capex)} back inside ${s.horizon} years.`
+          : r.financed
+            ? `The loan runs all ${s.horizon} years you're looking at, so none of them are free of it —
+               shorten the term or extend the horizon to see past it.`
+            : `That only breaks even as the ${s.horizon} years run out, with nothing beyond.`}`;
   }
 
   // ---- tiles ----
@@ -853,17 +863,20 @@ function render(){
     <div class="tile"><div class="l">Generated, year 1</div><div class="v">${Math.round(r.y1.produced/1000)}k</div>
       <div class="d">kWh — ${pct(coverPct,0)} of what you use</div></div>
     <div class="tile"><div class="l">Panels earn</div><div class="v pos">${nis(r.monthlyY1)}</div>
-      <div class="d">per month, before paying for them</div></div>
+      <div class="d">per month in year one, before paying for them</div></div>
     <div class="tile"><div class="l">The money costs</div>
       <div class="v neg">−${nis(r.capitalMonthly)}</div>
       <div class="d">${r.financed ? `loan at ${pct(r.capitalRate*100,2).replace(".00","")}`
         : `${pct(r.capitalRate*100,2).replace(".00","")} forgone`} over ${r.capitalYears} yrs</div></div>
     <div class="tile"><div class="l">Net, averaged</div>
       <div class="v ${r.netMonthlyAvg>=0?"pos":"neg"}">${nis(r.netMonthlyAvg)}</div>
-      <div class="d">per month across all ${s.horizon} years</div></div>
+      <div class="d">per month across all ${s.horizon} years — the panels average
+        ${nis(r.monthlyAvg)}, not ${nis(r.monthlyY1)}, once ageing and the inverter are counted</div></div>
     <div class="tile"><div class="l">Once it's paid for</div>
       <div class="v ${r.monthlyAfter>0?"pos":""}">${r.monthlyAfter > 0 ? nis(r.monthlyAfter) : "—"}</div>
-      <div class="d">${r.monthlyAfter > 0 ? `a month, clear, from year ${Math.ceil(r.freeFrom)+1}` : "never gets there"}</div></div>
+      <div class="d">${r.monthlyAfter > 0 ? `a month, clear, from year ${Math.ceil(r.freeFrom)+1}`
+        : r.freeFrom === null ? "never gets there"
+        : `the ${r.financed ? "loan" : "payback"} runs to the end of your ${s.horizon} years`}</div></div>
     <div class="tile"><div class="l">Used on site</div><div class="v">${pct(selfPct,0)}</div>
       <div class="meter"><span style="width:${Math.min(100,selfPct)}%"></span></div>
       <div class="d">worth ${nis(s.retailTariff*1000)}/MWh vs ${nis((s.exportTariff+s.premium)*1000)} exported</div></div>

@@ -256,6 +256,27 @@ test("post-payback income only counts years after payback", () => {
   const after = r.rows.filter(x => x.year > r.payback);
   near(r.monthlyAfter, after.reduce((a, x) => a + x.net, 0) / after.length / 12, 1e-9, "mean of the later years");
 });
+test("a loan as long as the horizon leaves nothing on the far side", () => {
+  // reported from a real screenshot: 25-year loan against a 25-year horizon read
+  // "the loan ends in year 25, after which it's ₪0 a month clear" and "never gets
+  // there" — it does get there, exactly as the window closes
+  const r = m.summarise(system({ financeMode: "loan", loanYears: 25, horizon: 25 }));
+  assert.equal(r.monthlyAfter, 0, "no years past the term to average");
+  assert.equal(r.freeFrom, 25, "but the term does end, at the horizon");
+  assert.notEqual(r.freeFrom, null, "which is not the same as never");
+});
+test("a loan shorter than the horizon does leave clear years", () => {
+  const r = m.summarise(system({ financeMode: "loan", loanYears: 15, horizon: 25 }));
+  assert.equal(r.freeFrom, 15);
+  assert.ok(r.monthlyAfter > 0, "years 16-25 are free of the payment");
+});
+test("the averaged net is the averaged earnings less the same charge", () => {
+  // the tiles sit side by side, so the relationship between them has to hold
+  const r = m.summarise(system({ financeMode: "loan", loanYears: 25, horizon: 25 }));
+  near(r.netMonthlyAvg, r.monthlyAvg - r.capitalMonthly, 1e-9, "average net");
+  near(r.netMonthlyY1, r.monthlyY1 - r.capitalMonthly, 1e-9, "year-one net");
+  assert.ok(r.monthlyAvg < r.monthlyY1, "ageing and the inverter drag the average down");
+});
 test("post-payback income is zero when it never pays back", () => {
   const r = m.summarise(system({ costPerKwp: 40000 }));
   assert.equal(r.payback, null, "far too expensive to repay");
